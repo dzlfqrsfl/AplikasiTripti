@@ -1,0 +1,20 @@
+{
+    "bahan_mentah": [],
+    "produksi_setengah_jadi": [],
+    "produk_jual": [
+        {
+            "Nama Produk": "Siomay",
+            "Harga Jual": 20000,
+            "Stok Produk": 20,
+            "SKU": ""
+        }
+    ],
+    "tipe_pesanan_list": [
+        "Dine In",
+        "Takeaway",
+        "GoFood",
+        "GrabFood",
+        "ShopeeFood"
+    ],
+    "transaksi": []
+}
