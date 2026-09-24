@@ -1,5 +1,11 @@
 {
-    "bahan_mentah": [],
+    "bahan_mentah": [
+        {
+            "Nama Bahan": "Bawang",
+            "Stok": 100.0,
+            "Satuan": "gram"
+        }
+    ],
     "produksi_setengah_jadi": [],
     "produk_jual": [
         {

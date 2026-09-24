@@ -7,16 +7,22 @@ import streamlit as st
 
 # --- PENCARIAN FILE LOGO UNTUK TAB BROWSER (FAVICON) ---
 favicon_file = "LogoTripti.jpeg"
-for nama_file in ["LogoTripti.jpeg", "LogoTripti.jpg", "LogoTripti.PNG", "logo_tripti.jpeg", "logo_tripti.jpg"]:
+for nama_file in [
+    "LogoTripti.jpeg",
+    "LogoTripti.jpg",
+    "LogoTripti.PNG",
+    "logo_tripti.jpeg",
+    "logo_tripti.jpg",
+]:
   if os.path.exists(nama_file):
     favicon_file = nama_file
     break
 
 # Konfigurasi Halaman (Logo Tripti otomatis jadi ikon tab browser)
 st.set_page_config(
-    page_title="Tripti - POS Kasir & Produksi", 
-    page_icon=favicon_file if os.path.exists(favicon_file) else "🛒", 
-    layout="wide"
+    page_title="Tripti - POS Kasir & Produksi",
+    page_icon=favicon_file if os.path.exists(favicon_file) else "🛒",
+    layout="wide",
 )
 
 # --- CUSTOM CSS KARTU PRODUK & TAMPILAN PROFESIONAL ---
@@ -87,13 +93,16 @@ saved_db = load_data()
 # Inisialisasi Session State dengan membaca database permanen
 if "initialized" not in st.session_state:
   if saved_db:
-    st.session_state.bahan_mentah = pd.DataFrame(saved_db.get("bahan_mentah", []))
+    st.session_state.bahan_mentah = pd.DataFrame(
+        saved_db.get("bahan_mentah", [])
+    )
     st.session_state.produksi_setengah_jadi = pd.DataFrame(
         saved_db.get("produksi_setengah_jadi", [])
     )
     st.session_state.produk_jual = pd.DataFrame(saved_db.get("produk_jual", []))
     st.session_state.tipe_pesanan_list = saved_db.get(
-        "tipe_pesanan_list", ["Dine In", "Takeaway", "GoFood", "GrabFood", "ShopeeFood"]
+        "tipe_pesanan_list",
+        ["Dine In", "Takeaway", "GoFood", "GrabFood", "ShopeeFood"],
     )
     st.session_state.transaksi = saved_db.get("transaksi", [])
   else:
@@ -367,7 +376,6 @@ if menu == "1. POS Kasir Utama":
             st.warning("Isi jumlah Qty minimal 1 pada produk yang ingin dibeli.")
 
   with col_cart:
-    # Bagian Keranjang Kembali Menggunakan Judul Teks Standar
     st.markdown("### 🛒 Keranjang Belanja")
 
     if not st.session_state.cart:
@@ -601,10 +609,10 @@ elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
     st.success("Daftar tipe pesanan berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 4. KELOLA MENU & STOK PRODUK JADI (EDIT)
+# 4. KELOLA MENU & STOK PRODUK JADI (EDIT / HAPUS)
 # -------------------------------------------------------------------------
 elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
-  st.header("🍽️ Kelola Menu Produk & Stok Jadi (Bisa Diedit)")
+  st.header("🍽️ Kelola Menu Produk & Stok Jadi")
 
   with st.form("form_menu"):
     nm = st.text_input("Nama Produk (Cth: Siomay Ikan Tenggiri)")
@@ -644,7 +652,11 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
         st.success(f"Produk baru '{nm}' berhasil ditambahkan!")
 
   st.markdown("---")
-  st.subheader("📝 Edit Data & Stok Produk Jadi")
+  st.subheader("📝 Edit atau Hapus Data Produk Jadi")
+  st.info(
+      "Anda bisa mengedit langsung di tabel atau menghapus baris produk dengan"
+      " menekan ikon tempat sampah di tabel."
+  )
   if st.session_state.produk_jual.empty:
     st.info("Belum ada data produk.")
   else:
@@ -657,7 +669,7 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
       st.success("Data produk berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 5. TAB PRODUKSI & RESEP (EDIT)
+# 5. TAB PRODUKSI & RESEP (EDIT / HAPUS)
 # -------------------------------------------------------------------------
 elif menu == "5. Tab Produksi & Resep (Edit)":
   st.header("🍳 Tab Produksi & Input Resep")
@@ -751,6 +763,7 @@ elif menu == "5. Tab Produksi & Resep (Edit)":
 
   st.markdown("---")
   st.subheader("📝 Riwayat & Edit Hasil Produksi")
+  st.info("Anda bisa menghapus riwayat produksi dengan menghapus baris tabel.")
   if st.session_state.produksi_setengah_jadi.empty:
     st.info("Belum ada riwayat produksi.")
   else:
@@ -765,7 +778,7 @@ elif menu == "5. Tab Produksi & Resep (Edit)":
       st.success("Riwayat produksi berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 6. INVENTORI BAHAN MENTAH (EDIT)
+# 6. INVENTORI BAHAN MENTAH (EDIT / HAPUS)
 # -------------------------------------------------------------------------
 elif menu == "6. Inventori Bahan Mentah (Edit)":
   st.header("📦 Inventori Bahan Mentah & Penyesuaian Stok")
@@ -805,7 +818,11 @@ elif menu == "6. Inventori Bahan Mentah (Edit)":
         st.error(f"Error: {e}")
 
   st.markdown("---")
-  st.subheader("📝 Edit & Sesuaikan Stok Bahan Mentah Langsung")
+  st.subheader("📝 Edit & Hapus Stok Bahan Mentah")
+  st.info(
+      "Anda bisa menghapus bahan mentah dengan mencentang baris lalu menghapusnya"
+      " di tabel."
+  )
 
   if st.session_state.bahan_mentah.empty:
     st.info("Belum ada data bahan mentah.")
