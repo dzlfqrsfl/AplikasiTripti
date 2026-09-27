@@ -200,7 +200,7 @@ def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
     current_x = next_x + space_length
 
 
-# Fungsi Struk PDF (Dengan Biaya Packaging & QRIS)
+# Fungsi Struk PDF (Sebagai Struk Tagihan + QRIS)
 def generate_tripti_receipt(
     items_dibeli,
     subtotal,
@@ -216,7 +216,7 @@ def generate_tripti_receipt(
     nama_pelanggan,
     no_urutan,
 ):
-  pdf = FPDF(orientation="P", unit="mm", format=(80, 230))
+  pdf = FPDF(orientation="P", unit="mm", format=(80, 235))
   pdf.add_page()
   pdf.set_font("Courier", "B", 10)
 
@@ -238,7 +238,7 @@ def generate_tripti_receipt(
   pdf.ln(2)
 
   pdf.set_font("Courier", "B", 8)
-  pdf.cell(0, 4, "[ NON PAID ORDER ]", 0, 1, "C")
+  pdf.cell(0, 4, "[ STRUK TAGIHAN PEMBAYARAN ]", 0, 1, "C")
 
   pdf.ln(2)
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
@@ -308,7 +308,7 @@ def generate_tripti_receipt(
   pdf.ln(2)
 
   pdf.set_font("Courier", "B", 9)
-  print_row("TOTAL BAYAR", total_bayar)
+  print_row("TOTAL TAGIHAN", total_bayar)
 
   pdf.ln(3)
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
@@ -329,9 +329,8 @@ def generate_tripti_receipt(
 
   pdf.set_font("Courier", "", 7)
   pdf.cell(0, 3, "***", 0, 1, "C")
-  pdf.cell(0, 3, "Terima kasih.", 0, 1, "C")
-  pdf.cell(0, 3, "STRUK UNTUK KONSUMEN", 0, 1, "C")
-  pdf.cell(0, 3, "BUKAN STRUK PEMBAYARAN", 0, 1, "C")
+  pdf.cell(0, 3, "Terima kasih atas pesanan Anda.", 0, 1, "C")
+  pdf.cell(0, 3, "Simpan struk ini sebagai bukti tagihan.", 0, 1, "C")
   pdf.cell(0, 3, "***", 0, 1, "C")
 
   filename = f"struk_{no_nota}.pdf"
@@ -367,7 +366,6 @@ if menu == "1. POS Kasir Utama":
           "Nama Pelanggan", placeholder="Nama Konsumen..."
       )
     with c_srch2:
-      # Pilihan kasir dengan default Dzulfiqar dan opsi Nida
       nama_kasir = st.selectbox(
           "Kasir", ["Dzulfiqar", "Nida", "Lainnya"]
       )
@@ -502,10 +500,10 @@ if menu == "1. POS Kasir Utama":
       ) + packaging_fee + order_fee + pajak
 
       st.markdown(
-          f"### **Total Bayar: Rp {total_bayar:,}**", unsafe_allow_html=True
+          f"### **Total Tagihan: Rp {total_bayar:,}**", unsafe_allow_html=True
       )
 
-      if st.button("💳 PROSES PEMBAYARAN & CETAK STRUK", key="btn_bayar"):
+      if st.button("💳 PROSES & CETAK STRUK TAGIHAN", key="btn_bayar"):
         stok_cukup = True
         for item in item_list:
           idx_p = item["index"]
@@ -573,7 +571,7 @@ if menu == "1. POS Kasir Utama":
       st.markdown("---")
       with open(st.session_state.last_receipt, "rb") as f:
         st.download_button(
-            label="📥 Unduh Struk PDF Terakhir",
+            label="📥 Unduh Struk Tagihan Terakhir",
             data=f,
             file_name=st.session_state.last_receipt,
             mime="application/pdf",
