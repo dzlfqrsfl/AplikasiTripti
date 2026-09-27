@@ -18,7 +18,7 @@ for nama_file in [
     favicon_file = nama_file
     break
 
-# Konfigurasi Halaman (Logo Tripti otomatis jadi ikon tab browser)
+# Konfigurasi Halaman
 st.set_page_config(
     page_title="Tripti - POS Kasir & Produksi",
     page_icon=favicon_file if os.path.exists(favicon_file) else "🛒",
@@ -67,7 +67,12 @@ def load_data():
   if os.path.exists(DB_FILE):
     try:
       with open(DB_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+        if "stok_setengah_jadi" not in data:
+          data["stok_setengah_jadi"] = []
+        if "master_resep" not in data:
+          data["master_resep"] = []
+        return data
     except Exception:
       pass
   return None
@@ -76,6 +81,10 @@ def load_data():
 def save_data():
   data = {
       "bahan_mentah": st.session_state.bahan_mentah.to_dict(orient="records"),
+      "stok_setengah_jadi": st.session_state.stok_setengah_jadi.to_dict(
+          orient="records"
+      ),
+      "master_resep": st.session_state.master_resep.to_dict(orient="records"),
       "produksi_setengah_jadi": st.session_state.produksi_setengah_jadi.to_dict(
           orient="records"
       ),
@@ -87,14 +96,20 @@ def save_data():
     json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-# Load data dari file JSON setiap kali script berjalan / di-refresh
+# Load data dari file JSON
 saved_db = load_data()
 
-# Inisialisasi Session State dengan membaca database permanen
+# Inisialisasi Session State
 if "initialized" not in st.session_state:
   if saved_db:
     st.session_state.bahan_mentah = pd.DataFrame(
         saved_db.get("bahan_mentah", [])
+    )
+    st.session_state.stok_setengah_jadi = pd.DataFrame(
+        saved_db.get("stok_setengah_jadi", [])
+    )
+    st.session_state.master_resep = pd.DataFrame(
+        saved_db.get("master_resep", [])
     )
     st.session_state.produksi_setengah_jadi = pd.DataFrame(
         saved_db.get("produksi_setengah_jadi", [])
@@ -109,11 +124,17 @@ if "initialized" not in st.session_state:
     st.session_state.bahan_mentah = pd.DataFrame(
         columns=["Nama Bahan", "Stok", "Satuan"]
     )
+    st.session_state.stok_setengah_jadi = pd.DataFrame(
+        columns=["Nama Barang Setengah Jadi", "Stok", "Satuan"]
+    )
+    st.session_state.master_resep = pd.DataFrame(
+        columns=["Nama Resep", "Hasil Jadi", "Satuan Hasil", "Komposisi Bahan"]
+    )
     st.session_state.produksi_setengah_jadi = pd.DataFrame(
         columns=[
             "Waktu",
             "Nama Resep / Barang",
-            "Jumlah Hasil (Manual)",
+            "Jumlah Hasil",
             "Satuan Hasil",
             "Bahan Terpakai",
         ]
@@ -138,7 +159,7 @@ if "last_receipt" not in st.session_state:
   st.session_state.last_receipt = None
 
 
-# Fungsi Helper untuk Menggambar Garis Putus-Putus Presisi di Tengah PDF
+# Fungsi Helper Garis Putus-Putus PDF
 def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
   current_x = x1
   while current_x < x2:
@@ -147,7 +168,7 @@ def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
     current_x = next_x + space_length
 
 
-# Fungsi Struk PDF Tripti (Garis Putus-Putus Presisi & Rapi)
+# Fungsi Struk PDF
 def generate_tripti_receipt(
     items_dibeli,
     subtotal,
@@ -167,7 +188,6 @@ def generate_tripti_receipt(
 
   x1, x2 = 5, 75
 
-  # Header Toko
   pdf.cell(0, 5, "Tripti", 0, 1, "C")
   pdf.set_font("Courier", "", 7)
   pdf.multi_cell(
@@ -183,7 +203,6 @@ def generate_tripti_receipt(
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
   pdf.ln(2)
 
-  # Non Paid Order
   pdf.set_font("Courier", "B", 8)
   pdf.cell(0, 4, "[ NON PAID ORDER ]", 0, 1, "C")
 
@@ -191,7 +210,6 @@ def generate_tripti_receipt(
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
   pdf.ln(2)
 
-  # Info Nota
   pdf.set_font("Courier", "", 7)
   pdf.cell(0, 4, f"WAKTU PESANAN : {waktu}", 0, 1, "L")
   pdf.cell(0, 4, f"NO NOTA       : #{no_nota}", 0, 1, "L")
@@ -270,7 +288,7 @@ def generate_tripti_receipt(
   return filename
 
 
-# Top Bar Navigasi Menu Utama
+# Navigasi Utama
 st.markdown("### 🏷️ TRIPTI - POS Kasir & Produksi")
 menu = st.selectbox(
     "Pilih Menu Utama",
@@ -279,14 +297,14 @@ menu = st.selectbox(
         "2. Riwayat & Story Pemesanan",
         "3. Pengaturan Tipe Pesanan (Custom)",
         "4. Kelola Menu & Stok Produk Jadi (Edit)",
-        "5. Tab Produksi & Resep (Edit)",
+        "5. Tab Produksi & Resep Baku (Edit)",
         "6. Inventori Bahan Mentah (Edit)",
     ],
 )
 st.markdown("---")
 
 # -------------------------------------------------------------------------
-# 1. POS KASIR UTAMA (VALIDASI STOK & INPUT QTY)
+# 1. POS KASIR UTAMA
 # -------------------------------------------------------------------------
 if menu == "1. POS Kasir Utama":
   col_main, col_cart = st.columns([2, 1])
@@ -498,7 +516,7 @@ if menu == "1. POS Kasir Utama":
         )
 
 # -------------------------------------------------------------------------
-# 2. RIWAYAT & STORY PEMESANAN (DENGAN FITUR PEMBATALAN / VOID)
+# 2. RIWAYAT & STORY PEMESANAN
 # -------------------------------------------------------------------------
 elif menu == "2. Riwayat & Story Pemesanan":
   st.header("📜 Riwayat & Story Pemesanan (Log Transaksi)")
@@ -576,7 +594,7 @@ elif menu == "2. Riwayat & Story Pemesanan":
             st.rerun()
 
 # -------------------------------------------------------------------------
-# 3. PENGATURAN TIPE PESANAN (CUSTOM)
+# 3. PENGATURAN TIPE PESANAN
 # -------------------------------------------------------------------------
 elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
   st.header("⚙️ Pengaturan Tipe Pesanan (Custom)")
@@ -609,54 +627,104 @@ elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
     st.success("Daftar tipe pesanan berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 4. KELOLA MENU & STOK PRODUK JADI (EDIT / HAPUS)
+# 4. KELOLA MENU & STOK PRODUK JADI (DENGAN POTONG STOK SETENGAH JADI)
 # -------------------------------------------------------------------------
 elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
   st.header("🍽️ Kelola Menu Produk & Stok Jadi")
 
   with st.form("form_menu"):
-    nm = st.text_input("Nama Produk (Cth: Siomay Ikan Tenggiri)")
+    nm = st.text_input("Nama Produk Siap Jual (Cth: Siomay Ikan Tenggiri)")
     hrg = st.number_input("Harga Jual (Rp)", min_value=0, step=500)
     stk_prod = st.number_input(
-        "Jumlah Stok Produk Jadi", min_value=0, value=0, step=1
+        "Jumlah Stok Produk Jadi yang Ditambahkan", min_value=0, value=0, step=1
     )
     sku = st.text_input("Kode SKU (Cth: SIT-9872PJ)")
-    if st.form_submit_button("Simpan Produk") and nm:
-      existing_idx = st.session_state.produk_jual.index[
-          st.session_state.produk_jual["Nama Produk"].str.lower()
-          == nm.strip().lower()
-      ]
 
-      if not existing_idx.empty:
-        idx_e = existing_idx[0]
-        st.session_state.produk_jual.loc[idx_e, "Stok Produk"] += stk_prod
-        st.session_state.produk_jual.loc[idx_e, "Harga Jual"] = hrg
-        save_data()
-        st.success(
-            f"Produk '{nm}' sudah ada. Stok berhasil ditambah {stk_prod} (Total"
-            f" stok: {st.session_state.produk_jual.loc[idx_e, 'Stok Produk']})."
+    st.markdown("---")
+    st.markdown(
+        "*(Opsional)* Pilih Barang Setengah Jadi yang Dipotong untuk Stok Ini:"
+    )
+
+    pilih_setengah_jadi = "Tidak Ada"
+    jml_potong_sj = 0.0
+    if not st.session_state.stok_setengah_jadi.empty:
+      list_opsi_sj = ["Tidak Ada"] + st.session_state.stok_setengah_jadi[
+          "Nama Barang Setengah Jadi"
+      ].tolist()
+      pilih_setengah_jadi = st.selectbox(
+          "Barang Setengah Jadi Terpakai", list_opsi_sj
+      )
+      if pilih_setengah_jadi != "Tidak Ada":
+        jml_potong_sj = st.number_input(
+            "Jumlah Setengah Jadi yang Dipotong",
+            min_value=0.0,
+            value=0.0,
+            step=1.0,
         )
-      else:
-        new_p = pd.DataFrame(
-            [{
-                "Nama Produk": nm.strip(),
-                "Harga Jual": hrg,
-                "Stok Produk": stk_prod,
-                "SKU": sku,
-            }]
-        )
-        st.session_state.produk_jual = pd.concat(
-            [st.session_state.produk_jual, new_p], ignore_index=True
-        )
-        save_data()
-        st.success(f"Produk baru '{nm}' berhasil ditambahkan!")
+    else:
+      st.info(
+          "Belum ada stok barang setengah jadi. Buat dulu di 'Tab Produksi &"
+          " Resep Baku'."
+      )
+
+    if st.form_submit_button("Simpan Produk & Potong Stok Setengah Jadi") and nm:
+      bisa_simpan = True
+      if pilih_setengah_jadi != "Tidak Ada" and jml_potong_sj > 0:
+        stok_sj_row = st.session_state.stok_setengah_jadi.loc[
+            st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
+            == pilih_setengah_jadi
+        ]
+        if not stok_sj_row.empty:
+          stok_sj_tersedia = float(stok_sj_row["Stok"].values[0])
+          if stok_sj_tersedia < jml_potong_sj:
+            bisa_simpan = False
+            st.error(
+                f"Stok barang setengah jadi '{pilih_setengah_jadi}' tidak cukup!"
+                f" Tersisa {stok_sj_tersedia}, anda butuh {jml_potong_sj}."
+            )
+
+      if bisa_simpan:
+        if pilih_setengah_jadi != "Tidak Ada" and jml_potong_sj > 0:
+          idx_sj = st.session_state.stok_setengah_jadi.index[
+              st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
+              == pilih_setengah_jadi
+          ][0]
+          st.session_state.stok_setengah_jadi.loc[idx_sj, "Stok"] -= (
+              jml_potong_sj
+          )
+
+        existing_idx = st.session_state.produk_jual.index[
+            st.session_state.produk_jual["Nama Produk"].str.lower()
+            == nm.strip().lower()
+        ]
+
+        if not existing_idx.empty:
+          idx_e = existing_idx[0]
+          st.session_state.produk_jual.loc[idx_e, "Stok Produk"] += stk_prod
+          st.session_state.produk_jual.loc[idx_e, "Harga Jual"] = hrg
+          save_data()
+          st.success(
+              f"Produk '{nm}' diperbarui. Stok bertambah {stk_prod} (Total"
+              f" stok: {st.session_state.produk_jual.loc[idx_e, 'Stok Produk']})."
+          )
+        else:
+          new_p = pd.DataFrame(
+              [{
+                  "Nama Produk": nm.strip(),
+                  "Harga Jual": hrg,
+                  "Stok Produk": stk_prod,
+                  "SKU": sku,
+              }]
+          )
+          st.session_state.produk_jual = pd.concat(
+              [st.session_state.produk_jual, new_p], ignore_index=True
+          )
+          save_data()
+          st.success(f"Produk baru '{nm}' berhasil ditambahkan!")
+        st.rerun()
 
   st.markdown("---")
   st.subheader("📝 Edit atau Hapus Data Produk Jadi")
-  st.info(
-      "Anda bisa mengedit langsung di tabel atau menghapus baris produk dengan"
-      " menekan ikon tempat sampah di tabel."
-  )
   if st.session_state.produk_jual.empty:
     st.info("Belum ada data produk.")
   else:
@@ -669,116 +737,277 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
       st.success("Data produk berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 5. TAB PRODUKSI & RESEP (EDIT / HAPUS)
+# 5. TAB PRODUKSI & MASTER RESEP BAKU
 # -------------------------------------------------------------------------
-elif menu == "5. Tab Produksi & Resep (Edit)":
-  st.header("🍳 Tab Produksi & Input Resep")
+elif menu == "5. Tab Produksi & Resep Baku (Edit)":
+  st.header("🍳 Master Resep Baku & Produksi Setengah Jadi")
 
-  with st.form("form_produksi_resep"):
-    nama_resep = st.text_input("Nama Resep / Barang Setengah Jadi")
+  tab_prod1, tab_prod2, tab_prod3 = st.tabs([
+      "1. Proses Produksi (Eksekusi Resep)",
+      "2. Kelola Master Resep Baku",
+      "3. Stok & Riwayat Setengah Jadi",
+  ])
 
-    col_h1, col_h2 = st.columns(2)
-    with col_h1:
-      jumlah_hasil_manual = st.number_input(
-          "Jumlah Hasil Jadi (Manual)", min_value=0.0, value=80.0, step=1.0
+  # --- TAB 1: EKSEKUSI PRODUKSI BERDASARKAN MASTER RESEP ---
+  with tab_prod1:
+    st.subheader("⚡ Eksekusi Produksi dari Resep Baku")
+    st.info(
+        "Pilih resep baku yang sudah dibuat. Sistem akan otomatis menghitung dan"
+        " memotong bahan mentah berdasarkan jumlah batch produksi."
+    )
+
+    if st.session_state.master_resep.empty:
+      st.warning(
+          "Belum ada Master Resep Baku. Buat terlebih dahulu di tab 'Kelola"
+          " Master Resep Baku'."
       )
-    with col_h2:
-      satuan_hasil = st.selectbox(
-          "Satuan Hasil", ["pcs", "porsi", "liter", "bungkus", "botol"]
-      )
-
-    st.markdown("---")
-    st.markdown("#### 📋 Bagian Resep (Pemakaian Bahan Mentah)")
-
-    pemakaian_bahan = {}
-    if not st.session_state.bahan_mentah.empty:
-      for idx, row in st.session_state.bahan_mentah.iterrows():
-        pakai = st.number_input(
-            f"Pakai {row['Nama Bahan']} (Stok Tersedia: {row['Stok']} {row['Satuan']})",
-            min_value=0.0,
-            value=0.0,
-            step=1.0,
-            key=f"resep_pakai_{idx}",
-        )
-        if pakai > 0:
-          pemakaian_bahan[row["Nama Bahan"]] = (
-              f"{pakai} (tersedia {row['Satuan']})"
-          )
     else:
-      st.warning("Belum ada data bahan mentah.")
+      with st.form("form_eksekusi_resep"):
+        list_resep_nama = st.session_state.master_resep["Nama Resep"].tolist()
+        pilih_resep = st.selectbox("Pilih Resep Baku", list_resep_nama)
 
-    submitted_prod = st.form_submit_button("Simpan Produksi & Potong Bahan")
+        multiplier = st.number_input(
+            "Jumlah Batch Produksi (Kelipatan Resep)",
+            min_value=1.0,
+            value=1.0,
+            step=1.0,
+        )
 
-    if submitted_prod:
-      if not nama_resep:
-        st.error("Nama resep/barang tidak boleh kosong!")
-      else:
-        stok_cukup = True
-        for bahan, detail_str in pemakaian_bahan.items():
-          jumlah_pakai = float(detail_str.split()[0])
-          stok_sekarang = float(
+        submitted_eksekusi = st.form_submit_button(
+            "🚀 Jalankan Produksi (Potong Bahan & Tambah Stok)"
+        )
+
+        if submitted_eksekusi:
+          # Ambil data resep terpilih
+          resep_row = st.session_state.master_resep.loc[
+              st.session_state.master_resep["Nama Resep"] == pilih_resep
+          ].iloc[0]
+          hasil_per_resep = float(resep_row["Hasil Jadi"])
+          satuan_hasil = resep_row["Satuan Hasil"]
+          komposisi_str = resep_row["Komposisi Bahan"]
+
+          # Parse komposisi bahan dari string dictionary
+          try:
+            komposisi_dict = json.loads(komposisi_str.replace("'", '"'))
+          except Exception:
+            komposisi_dict = {}
+
+          # Validasi ketersediaan stok bahan mentah
+          stok_cukup = True
+          bahan_terpakai_real = {}
+
+          for bahan, qty_butuh_per_unit in komposisi_dict.items():
+            total_butuh = float(qty_butuh_per_unit) * multiplier
+            # Cek apakah bahan ada di inventori
+            cek_bahan = st.session_state.bahan_mentah.loc[
+                st.session_state.bahan_mentah["Nama Bahan"] == bahan
+            ]
+            if cek_bahan.empty:
+              stok_cukup = False
+              st.error(
+                  f"Bahan mentah '{bahan}' tidak ditemukan di inventori!"
+              )
+              break
+
+            stok_sedia = float(cek_bahan["Stok"].values[0])
+            satuan_bahan = cek_bahan["Satuan"].values[0]
+
+            if stok_sedia < total_butuh:
+              stok_cukup = False
+              st.error(
+                  f"Stok bahan '{bahan}' tidak cukup! Tersisa {stok_sedia}"
+                  f" {satuan_bahan}, butuh {total_butuh} {satuan_bahan}."
+              )
+              break
+            else:
+              bahan_terpakai_real[bahan] = (
+                  f"{total_butuh} {satuan_bahan}"
+              )
+
+          if stok_cukup:
+            # 1. Potong stok bahan mentah
+            for bahan, detail_pakai in bahan_terpakai_real.items():
+              jml_potong = float(detail_pakai.split()[0])
               st.session_state.bahan_mentah.loc[
                   st.session_state.bahan_mentah["Nama Bahan"] == bahan, "Stok"
-              ].values[0]
-          )
+              ] -= jml_potong
 
-          if stok_sekarang < jumlah_pakai:
-            stok_cukup = False
-            st.error(
-                f"Stok bahan '{bahan}' tidak cukup! Tersisa {stok_sekarang},"
-                f" anda butuh {jumlah_pakai}."
+            # 2. Tambah stok setengah jadi
+            total_hasil_jadi = hasil_per_resep * multiplier
+            existing_s_idx = st.session_state.stok_setengah_jadi.index[
+                st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
+                .str.lower()
+                == pilih_resep.strip().lower()
+            ]
+
+            if not existing_s_idx.empty:
+              idx_s = existing_s_idx[0]
+              st.session_state.stok_setengah_jadi.loc[idx_s, "Stok"] += (
+                  total_hasil_jadi
+              )
+            else:
+              new_stok_sj = pd.DataFrame([{
+                  "Nama Barang Setengah Jadi": pilih_resep.strip(),
+                  "Stok": total_hasil_jadi,
+                  "Satuan": satuan_hasil,
+              }])
+              st.session_state.stok_setengah_jadi = pd.concat(
+                  [st.session_state.stok_setengah_jadi, new_stok_sj],
+                  ignore_index=True,
+              )
+
+            # 3. Catat riwayat produksi
+            waktu_prod = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            new_record = pd.DataFrame(
+                [[
+                    waktu_prod,
+                    pilih_resep,
+                    total_hasil_jadi,
+                    satuan_hasil,
+                    str(bahan_terpakai_real),
+                ]],
+                columns=[
+                    "Waktu",
+                    "Nama Resep / Barang",
+                    "Jumlah Hasil",
+                    "Satuan Hasil",
+                    "Bahan Terpakai",
+                ],
             )
-            break
+            st.session_state.produksi_setengah_jadi = pd.concat(
+                [st.session_state.produksi_setengah_jadi, new_record],
+                ignore_index=True,
+            )
 
-        if stok_cukup:
-          for bahan, detail_str in pemakaian_bahan.items():
-            jumlah_pakai = float(detail_str.split()[0])
-            st.session_state.bahan_mentah.loc[
-                st.session_state.bahan_mentah["Nama Bahan"] == bahan, "Stok"
-            ] -= jumlah_pakai
+            save_data()
+            st.success(
+                f"Produksi resep '{pilih_resep}' sukses! Bertambah"
+                f" {total_hasil_jadi} {satuan_hasil} ke stok setengah jadi."
+            )
+            st.rerun()
 
-          waktu_prod = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-          new_record = pd.DataFrame(
-              [[
-                  waktu_prod,
-                  nama_resep,
-                  jumlah_hasil_manual,
-                  satuan_hasil,
-                  str(pemakaian_bahan),
-              ]],
-              columns=[
-                  "Waktu",
-                  "Nama Resep / Barang",
-                  "Jumlah Hasil (Manual)",
-                  "Satuan Hasil",
-                  "Bahan Terpakai",
-              ],
-          )
-          st.session_state.produksi_setengah_jadi = pd.concat(
-              [st.session_state.produksi_setengah_jadi, new_record],
-              ignore_index=True,
-          )
-          save_data()
-          st.success(f"Berhasil memproses resep '{nama_resep}'!")
-
-  st.markdown("---")
-  st.subheader("📝 Riwayat & Edit Hasil Produksi")
-  st.info("Anda bisa menghapus riwayat produksi dengan menghapus baris tabel.")
-  if st.session_state.produksi_setengah_jadi.empty:
-    st.info("Belum ada riwayat produksi.")
-  else:
-    edited_prod = st.data_editor(
-        st.session_state.produksi_setengah_jadi,
-        num_rows="dynamic",
-        use_container_width=True,
+  # --- TAB 2: KELOLA MASTER RESEP BAKU ---
+  with tab_prod2:
+    st.subheader("📋 Buat & Kelola Master Resep Baku")
+    st.info(
+        "Tentukan komposisi bahan mentah tetap untuk satu standar resep."
     )
-    if st.button("💾 Simpan Perubahan Produksi"):
-      st.session_state.produksi_setengah_jadi = edited_prod
-      save_data()
-      st.success("Riwayat produksi berhasil diperbarui!")
+
+    with st.form("form_tambah_master_resep"):
+      nm_resep = st.text_input(
+          "Nama Resep Baku (Cth: Adonan Siomay Standar)"
+      )
+      col_r1, col_r2 = st.columns(2)
+      with col_r1:
+        hasil_jadi_std = st.number_input(
+            "Hasil Jadi Standar (Per 1 Resep)", min_value=1.0, value=80.0
+        )
+      with col_r2:
+        satuan_hasil_std = st.selectbox(
+            "Satuan Hasil Standar", ["pcs", "porsi", "kg", "liter", "bungkus"]
+        )
+
+      st.markdown("---")
+      st.markdown("#### Takaran Bahan Mentah yang Dibutuhkan (Per 1 Resep):")
+
+      komposisi_input = {}
+      if not st.session_state.bahan_mentah.empty:
+        for idx, row in st.session_state.bahan_mentah.iterrows():
+          qty_pakai = st.number_input(
+              f"Takaran {row['Nama Bahan']} ({row['Satuan']})",
+              min_value=0.0,
+              value=0.0,
+              step=1.0,
+              key=f"master_bahan_{idx}",
+          )
+          if qty_pakai > 0:
+            komposisi_input[row["Nama Bahan"]] = qty_pakai
+      else:
+        st.warning("Belum ada data bahan mentah di inventori.")
+
+      submitted_master = st.form_submit_button("💾 Simpan Master Resep Baku")
+
+      if submitted_master:
+        if not nm_resep:
+          st.error("Nama resep tidak boleh kosong!")
+        elif not komposisi_input:
+          st.error("Pilih minimal 1 bahan mentah untuk resep ini!")
+        else:
+          new_master = pd.DataFrame(
+              [{
+                  "Nama Resep": nm_resep.strip(),
+                  "Hasil Jadi": hasil_jadi_std,
+                  "Satuan Hasil": satuan_hasil_std,
+                  "Komposisi Bahan": str(komposisi_input),
+              }]
+          )
+
+          # Cek jika resep sudah ada, update; jika belum, tambahkan
+          existing_m = st.session_state.master_resep.index[
+              st.session_state.master_resep["Nama Resep"].str.lower()
+              == nm_resep.strip().lower()
+          ]
+          if not existing_m.empty:
+            st.session_state.master_resep.loc[existing_m[0]] = new_master.loc[0]
+          else:
+            st.session_state.master_resep = pd.concat(
+                [st.session_state.master_resep, new_master], ignore_index=True
+            )
+
+          save_data()
+          st.success(
+              f"Master resep baku '{nm_resep}' berhasil disimpan!"
+          )
+          st.rerun()
+
+    st.markdown("---")
+    st.subheader("📝 Daftar Master Resep Tersimpan")
+    if st.session_state.master_resep.empty:
+      st.info("Belum ada master resep baku.")
+    else:
+      edited_master = st.data_editor(
+          st.session_state.master_resep,
+          num_rows="dynamic",
+          use_container_width=True,
+      )
+      if st.button("💾 Simpan Perubahan Master Resep"):
+        st.session_state.master_resep = edited_master
+        save_data()
+        st.success("Master resep berhasil diperbarui!")
+
+  # --- TAB 3: STOK & RIWAYAT SETENGAH JADI ---
+  with tab_prod3:
+    st.subheader("📦 Stok Barang Setengah Jadi Saat Ini")
+    if st.session_state.stok_setengah_jadi.empty:
+      st.info("Belum ada stok barang setengah jadi.")
+    else:
+      edited_stok_sj = st.data_editor(
+          st.session_state.stok_setengah_jadi,
+          num_rows="dynamic",
+          use_container_width=True,
+      )
+      if st.button("💾 Simpan Perubahan Stok Setengah Jadi"):
+        st.session_state.stok_setengah_jadi = edited_stok_sj
+        save_data()
+        st.success("Stok barang setengah jadi berhasil diperbarui!")
+
+    st.markdown("---")
+    st.subheader("📝 Riwayat Eksekusi Produksi")
+    if st.session_state.produksi_setengah_jadi.empty:
+      st.info("Belum ada riwayat produksi.")
+    else:
+      edited_prod = st.data_editor(
+          st.session_state.produksi_setengah_jadi,
+          num_rows="dynamic",
+          use_container_width=True,
+      )
+      if st.button("💾 Simpan Perubahan Riwayat Produksi"):
+        st.session_state.produksi_setengah_jadi = edited_prod
+        save_data()
+        st.success("Riwayat produksi berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 6. INVENTORI BAHAN MENTAH (EDIT / HAPUS)
+# 6. INVENTORI BAHAN MENTAH
 # -------------------------------------------------------------------------
 elif menu == "6. Inventori Bahan Mentah (Edit)":
   st.header("📦 Inventori Bahan Mentah & Penyesuaian Stok")
@@ -798,9 +1027,15 @@ elif menu == "6. Inventori Bahan Mentah (Edit)":
         save_data()
         st.success(f"Bahan mentah '{nm_b}' berhasil ditambahkan!")
 
-  with st.expander("📥 Upload Data Bahan Mentah via Excel / CSV"):
+  with st.expander(
+      "📥 Upload Data Bahan Mentah via Excel / CSV (Gabung Otomatis)"
+  ):
+    st.info(
+        "File Excel/CSV yang di-upload akan otomatis digabungkan dengan data"
+        " bahan mentah yang sudah ada sebelumnya."
+    )
     uploaded_file = st.file_uploader(
-        "Pilih file (.xlsx / .csv)", type=["xlsx", "csv"]
+        "Pilih file (.xlsx / .csv)", type=["xlsx", "csv"], key="upload_bulk_bahan"
     )
     if uploaded_file:
       try:
@@ -809,20 +1044,32 @@ elif menu == "6. Inventori Bahan Mentah (Edit)":
             if uploaded_file.name.endswith(".csv")
             else pd.read_excel(uploaded_file)
         )
-        st.session_state.bahan_mentah = pd.concat(
-            [st.session_state.bahan_mentah, df_u], ignore_index=True
-        )
-        save_data()
-        st.success("Upload data bahan mentah berhasil!")
+
+        kolom_wajib = ["Nama Bahan", "Stok", "Satuan"]
+        if all(col in df_u.columns for col in kolom_wajib):
+          st.session_state.bahan_mentah = pd.concat(
+              [st.session_state.bahan_mentah, df_u[kolom_wajib]],
+              ignore_index=True,
+          )
+          st.session_state.bahan_mentah = (
+              st.session_state.bahan_mentah.drop_duplicates(
+                  subset=["Nama Bahan"], keep="last"
+              ).reset_index(drop=True)
+          )
+
+          save_data()
+          st.success("Data bahan mentah berhasil di-upload dan digabungkan!")
+          st.rerun()
+        else:
+          st.error(
+              "Format kolom file Anda tidak sesuai! Pastikan file memiliki kolom:"
+              " Nama Bahan, Stok, dan Satuan."
+          )
       except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error membaca file: {e}")
 
   st.markdown("---")
   st.subheader("📝 Edit & Hapus Stok Bahan Mentah")
-  st.info(
-      "Anda bisa menghapus bahan mentah dengan mencentang baris lalu menghapusnya"
-      " di tabel."
-  )
 
   if st.session_state.bahan_mentah.empty:
     st.info("Belum ada data bahan mentah.")

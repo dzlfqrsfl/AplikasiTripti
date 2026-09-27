@@ -1,20 +1,124 @@
 {
     "bahan_mentah": [
         {
-            "Nama Bahan": "Bawang",
-            "Stok": 100.0,
-            "Satuan": "gram"
-        }
-    ],
-    "produksi_setengah_jadi": [],
-    "produk_jual": [
+            "Nama Bahan": "Ikan Tenggiri",
+            "Stok": 495,
+            "Satuan": "Gram (g)"
+        },
         {
-            "Nama Produk": "Siomay",
-            "Harga Jual": 20000,
-            "Stok Produk": 20,
-            "SKU": ""
+            "Nama Bahan": "Tepung Tapioka",
+            "Stok": 2177,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Labu Siam",
+            "Stok": 3977,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Daun Bawang",
+            "Stok": 0,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Kulit Ayam",
+            "Stok": 582,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Garam",
+            "Stok": 205,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "MSG",
+            "Stok": 160,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Bawang Putih Bubuk",
+            "Stok": 2,
+            "Satuan": "Pieces (pcs)"
+        },
+        {
+            "Nama Bahan": "Kacang Tanah",
+            "Stok": 1000,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Ubi",
+            "Stok": 944,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Gula Aren",
+            "Stok": 5000,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Gula Putih",
+            "Stok": 343,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Cabe Merah",
+            "Stok": 152,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Bawang Merah",
+            "Stok": 302,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Bawang Putih",
+            "Stok": 157,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Cabe Kering",
+            "Stok": 100,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Daun Jeruk",
+            "Stok": 68,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Asem",
+            "Stok": 362,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Tepung Terigu",
+            "Stok": 273,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Minyak",
+            "Stok": 500,
+            "Satuan": "Mililiter(ml)"
+        },
+        {
+            "Nama Bahan": "Telur",
+            "Stok": 224,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Cabe Rawit Hijau",
+            "Stok": 22,
+            "Satuan": "Gram (g)"
+        },
+        {
+            "Nama Bahan": "Rebon",
+            "Stok": 100,
+            "Satuan": "Gram (g)"
         }
     ],
+    "stok_setengah_jadi": [],
+    "produksi_setengah_jadi": [],
+    "produk_jual": [],
     "tipe_pesanan_list": [
         "Dine In",
         "Takeaway",
