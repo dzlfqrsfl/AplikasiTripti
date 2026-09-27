@@ -200,7 +200,7 @@ def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
     current_x = next_x + space_length
 
 
-# Fungsi Struk PDF
+# Fungsi Struk PDF (Tanpa baris Cabang)
 def generate_tripti_receipt(
     items_dibeli,
     subtotal,
@@ -243,11 +243,11 @@ def generate_tripti_receipt(
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
   pdf.ln(2)
 
+  # Info Nota & Pelanggan (Baris Cabang sudah dihapus)
   pdf.set_font("Courier", "", 7)
   pdf.cell(0, 4, f"WAKTU PESANAN : {waktu}", 0, 1, "L")
   pdf.cell(0, 4, f"NO NOTA       : #{no_nota}", 0, 1, "L")
   pdf.cell(0, 4, f"PELANGGAN     : {nama_pelanggan}", 0, 1, "L")
-  pdf.cell(0, 4, f"CABANG        : Cabang Pusat", 0, 1, "L")
   pdf.cell(0, 4, f"KASIR         : {nama_kasir}", 0, 1, "L")
   pdf.cell(0, 4, f"TIPE          : {tipe_pesanan}", 0, 1, "L")
   pdf.cell(0, 4, f"URUTAN        : {no_urutan}", 0, 1, "L")
@@ -502,7 +502,6 @@ if menu == "1. POS Kasir Utama":
                 "qty"
             ]
 
-          # Waktu disesuaikan ke WIB (UTC+7)
           waktu_str = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
           no_nota = f"PW{datetime.now(WIB).strftime('%d%H%M')}"
           nama_pelanggan_final = (
@@ -888,7 +887,6 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
                   ignore_index=True,
               )
 
-            # Waktu produksi disesuaikan ke WIB
             waktu_prod = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
             new_record = pd.DataFrame(
                 [[
