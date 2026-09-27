@@ -369,7 +369,7 @@ if menu == "1. POS Kasir Utama":
     with c_srch2:
       # Pilihan kasir dengan default Dzulfiqar dan opsi Nida
       nama_kasir = st.selectbox(
-          "Kasir", ["Dzulfiqar", "Nida", "Saeful I", "Lainnya"]
+          "Kasir", ["Dzulfiqar", "Nida", "Lainnya"]
       )
     with c_srch3:
       pilih_tipe_pesanan = st.selectbox(
