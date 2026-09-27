@@ -72,6 +72,22 @@ def load_data():
           data["stok_setengah_jadi"] = []
         if "master_resep" not in data:
           data["master_resep"] = []
+        if "bahan_mentah" not in data:
+          data["bahan_mentah"] = []
+        if "produk_jual" not in data:
+          data["produk_jual"] = []
+        if "produksi_setengah_jadi" not in data:
+          data["produksi_setengah_jadi"] = []
+        if "tipe_pesanan_list" not in data:
+          data["tipe_pesanan_list"] = [
+              "Dine In",
+              "Takeaway",
+              "GoFood",
+              "GrabFood",
+              "ShopeeFood",
+          ]
+        if "transaksi" not in data:
+          data["transaksi"] = []
         return data
     except Exception:
       pass
@@ -99,22 +115,35 @@ def save_data():
 # Load data dari file JSON
 saved_db = load_data()
 
-# Inisialisasi Session State
+# Inisialisasi Session State dengan DataFrame yang memiliki kolom lengkap
 if "initialized" not in st.session_state:
   if saved_db:
     st.session_state.bahan_mentah = pd.DataFrame(
-        saved_db.get("bahan_mentah", [])
+        saved_db.get("bahan_mentah", []),
+        columns=["Nama Bahan", "Stok", "Satuan"],
     )
     st.session_state.stok_setengah_jadi = pd.DataFrame(
-        saved_db.get("stok_setengah_jadi", [])
+        saved_db.get("stok_setengah_jadi", []),
+        columns=["Nama Barang Setengah Jadi", "Stok", "Satuan"],
     )
     st.session_state.master_resep = pd.DataFrame(
-        saved_db.get("master_resep", [])
+        saved_db.get("master_resep", []),
+        columns=["Nama Resep", "Hasil Jadi", "Satuan Hasil", "Komposisi Bahan"],
     )
     st.session_state.produksi_setengah_jadi = pd.DataFrame(
-        saved_db.get("produksi_setengah_jadi", [])
+        saved_db.get("produksi_setengah_jadi", []),
+        columns=[
+            "Waktu",
+            "Nama Resep / Barang",
+            "Jumlah Hasil",
+            "Satuan Hasil",
+            "Bahan Terpakai",
+        ],
     )
-    st.session_state.produk_jual = pd.DataFrame(saved_db.get("produk_jual", []))
+    st.session_state.produk_jual = pd.DataFrame(
+        saved_db.get("produk_jual", []),
+        columns=["Nama Produk", "Harga Jual", "Stok Produk", "SKU"],
+    )
     st.session_state.tipe_pesanan_list = saved_db.get(
         "tipe_pesanan_list",
         ["Dine In", "Takeaway", "GoFood", "GrabFood", "ShopeeFood"],
@@ -748,7 +777,6 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
       "3. Stok & Riwayat Setengah Jadi",
   ])
 
-  # --- TAB 1: EKSEKUSI PRODUKSI BERDASARKAN MASTER RESEP ---
   with tab_prod1:
     st.subheader("⚡ Eksekusi Produksi dari Resep Baku")
     st.info(
@@ -778,7 +806,6 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
         )
 
         if submitted_eksekusi:
-          # Ambil data resep terpilih
           resep_row = st.session_state.master_resep.loc[
               st.session_state.master_resep["Nama Resep"] == pilih_resep
           ].iloc[0]
@@ -786,19 +813,16 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
           satuan_hasil = resep_row["Satuan Hasil"]
           komposisi_str = resep_row["Komposisi Bahan"]
 
-          # Parse komposisi bahan dari string dictionary
           try:
             komposisi_dict = json.loads(komposisi_str.replace("'", '"'))
           except Exception:
             komposisi_dict = {}
 
-          # Validasi ketersediaan stok bahan mentah
           stok_cukup = True
           bahan_terpakai_real = {}
 
           for bahan, qty_butuh_per_unit in komposisi_dict.items():
             total_butuh = float(qty_butuh_per_unit) * multiplier
-            # Cek apakah bahan ada di inventori
             cek_bahan = st.session_state.bahan_mentah.loc[
                 st.session_state.bahan_mentah["Nama Bahan"] == bahan
             ]
@@ -825,14 +849,12 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
               )
 
           if stok_cukup:
-            # 1. Potong stok bahan mentah
             for bahan, detail_pakai in bahan_terpakai_real.items():
               jml_potong = float(detail_pakai.split()[0])
               st.session_state.bahan_mentah.loc[
                   st.session_state.bahan_mentah["Nama Bahan"] == bahan, "Stok"
               ] -= jml_potong
 
-            # 2. Tambah stok setengah jadi
             total_hasil_jadi = hasil_per_resep * multiplier
             existing_s_idx = st.session_state.stok_setengah_jadi.index[
                 st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
@@ -856,7 +878,6 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
                   ignore_index=True,
               )
 
-            # 3. Catat riwayat produksi
             waktu_prod = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             new_record = pd.DataFrame(
                 [[
@@ -886,7 +907,6 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
             )
             st.rerun()
 
-  # --- TAB 2: KELOLA MASTER RESEP BAKU ---
   with tab_prod2:
     st.subheader("📋 Buat & Kelola Master Resep Baku")
     st.info(
@@ -942,7 +962,6 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
               }]
           )
 
-          # Cek jika resep sudah ada, update; jika belum, tambahkan
           existing_m = st.session_state.master_resep.index[
               st.session_state.master_resep["Nama Resep"].str.lower()
               == nm_resep.strip().lower()
@@ -975,7 +994,6 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
         save_data()
         st.success("Master resep berhasil diperbarui!")
 
-  # --- TAB 3: STOK & RIWAYAT SETENGAH JADI ---
   with tab_prod3:
     st.subheader("📦 Stok Barang Setengah Jadi Saat Ini")
     if st.session_state.stok_setengah_jadi.empty:
