@@ -197,7 +197,7 @@ def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
     current_x = next_x + space_length
 
 
-# Fungsi Struk PDF
+# Fungsi Struk PDF (Sudah ditambah Nama Pelanggan)
 def generate_tripti_receipt(
     items_dibeli,
     subtotal,
@@ -209,6 +209,7 @@ def generate_tripti_receipt(
     no_nota,
     nama_kasir,
     tipe_pesanan,
+    nama_pelanggan,
     no_urutan,
 ):
   pdf = FPDF(orientation="P", unit="mm", format=(80, 200))
@@ -239,9 +240,11 @@ def generate_tripti_receipt(
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
   pdf.ln(2)
 
+  # Info Nota & Nama Pelanggan
   pdf.set_font("Courier", "", 7)
   pdf.cell(0, 4, f"WAKTU PESANAN : {waktu}", 0, 1, "L")
   pdf.cell(0, 4, f"NO NOTA       : #{no_nota}", 0, 1, "L")
+  pdf.cell(0, 4, f"PELANGGAN     : {nama_pelanggan}", 0, 1, "L")
   pdf.cell(0, 4, f"CABANG        : Cabang Pusat", 0, 1, "L")
   pdf.cell(0, 4, f"KASIR         : {nama_kasir}", 0, 1, "L")
   pdf.cell(0, 4, f"TIPE          : {tipe_pesanan}", 0, 1, "L")
@@ -342,7 +345,7 @@ if menu == "1. POS Kasir Utama":
     c_srch1, c_srch2, c_srch3 = st.columns([2, 1, 1])
     with c_srch1:
       cari_konsumen = st.text_input(
-          "Cari Konsumen...", placeholder="Nama Konsumen..."
+          "Nama Pelanggan", placeholder="Nama Konsumen..."
       )
     with c_srch2:
       nama_kasir = st.text_input("Kasir", value="Saeful I")
@@ -499,6 +502,9 @@ if menu == "1. POS Kasir Utama":
 
           waktu_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
           no_nota = f"PW{datetime.now().strftime('%d%H%M')}"
+          nama_pelanggan_final = (
+              cari_konsumen.strip() if cari_konsumen else "Umum"
+          )
 
           pdf_file = generate_tripti_receipt(
               item_list,
@@ -511,6 +517,7 @@ if menu == "1. POS Kasir Utama":
               no_nota,
               nama_kasir,
               pilih_tipe_pesanan,
+              nama_pelanggan_final,
               1,
           )
 
@@ -518,7 +525,7 @@ if menu == "1. POS Kasir Utama":
               "Waktu": waktu_str,
               "No Nota": no_nota,
               "Kasir": nama_kasir,
-              "Konsumen": cari_konsumen if cari_konsumen else "Umum",
+              "Konsumen": nama_pelanggan_final,
               "Tipe Pesanan": pilih_tipe_pesanan,
               "Total Bayar": total_bayar,
               "File Struk": pdf_file,
@@ -561,8 +568,8 @@ elif menu == "2. Riwayat & Story Pemesanan":
       orig_idx = len(st.session_state.transaksi) - 1 - i
 
       with st.expander(
-          f"Nota: #{trx['No Nota']} | {trx['Waktu']} | Rp"
-          f" {trx['Total Bayar']:,} ({trx.get('Tipe Pesanan', 'Dine In')})"
+          f"Nota: #{trx['No Nota']} | {trx['Waktu']} | Pelanggan:"
+          f" {trx['Konsumen']} | Rp {trx['Total Bayar']:,}"
       ):
         st.write(f"**Nama Konsumen:** {trx['Konsumen']}")
         st.write(f"**Kasir Bertugas:** {trx['Kasir']}")
@@ -656,7 +663,7 @@ elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
     st.success("Daftar tipe pesanan berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 4. KELOLA MENU & STOK PRODUK JADI (DENGAN POTONG STOK SETENGAH JADI)
+# 4. KELOLA MENU & STOK PRODUK JADI
 # -------------------------------------------------------------------------
 elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
   st.header("🍽️ Kelola Menu Produk & Stok Jadi")
