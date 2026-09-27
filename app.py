@@ -200,11 +200,12 @@ def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
     current_x = next_x + space_length
 
 
-# Fungsi Struk PDF (Tanpa baris Cabang)
+# Fungsi Struk PDF (Dengan Biaya Packaging & QRIS)
 def generate_tripti_receipt(
     items_dibeli,
     subtotal,
     diskon,
+    packaging_fee,
     order_fee,
     pajak,
     total_bayar,
@@ -215,7 +216,7 @@ def generate_tripti_receipt(
     nama_pelanggan,
     no_urutan,
 ):
-  pdf = FPDF(orientation="P", unit="mm", format=(80, 200))
+  pdf = FPDF(orientation="P", unit="mm", format=(80, 230))
   pdf.add_page()
   pdf.set_font("Courier", "B", 10)
 
@@ -243,7 +244,6 @@ def generate_tripti_receipt(
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
   pdf.ln(2)
 
-  # Info Nota & Pelanggan (Baris Cabang sudah dihapus)
   pdf.set_font("Courier", "", 7)
   pdf.cell(0, 4, f"WAKTU PESANAN : {waktu}", 0, 1, "L")
   pdf.cell(0, 4, f"NO NOTA       : #{no_nota}", 0, 1, "L")
@@ -298,6 +298,7 @@ def generate_tripti_receipt(
   print_row("SUB TOTAL", subtotal)
   pdf.cell(0, 4, f"{total_qty_produk} PRODUK", 0, 1, "L")
   print_row("DISKON (-)", diskon)
+  print_row("BIAYA PACKAGING (+)", packaging_fee)
   print_row("ORDER FEE (+)", order_fee)
   print_row("PAJAK (+)", pajak)
   print_row("PEMBULATAN", 0)
@@ -310,6 +311,22 @@ def generate_tripti_receipt(
   print_row("TOTAL BAYAR", total_bayar)
 
   pdf.ln(3)
+  draw_dashed_line(pdf, x1, x2, pdf.get_y())
+  pdf.ln(2)
+
+  qris_file = "qris.jpeg"
+  for q_name in ["qris.jpeg", "qris.jpg", "qris.png", "QRIS.jpeg", "QRIS.jpg"]:
+    if os.path.exists(q_name):
+      qris_file = q_name
+      break
+
+  if os.path.exists(qris_file):
+    pdf.set_font("Courier", "B", 8)
+    pdf.cell(0, 4, "SCAN QRIS UNTUK PEMBAYARAN", 0, 1, "C")
+    pdf.ln(1)
+    pdf.image(qris_file, x=22, y=pdf.get_y(), w=36)
+    pdf.ln(38)
+
   pdf.set_font("Courier", "", 7)
   pdf.cell(0, 3, "***", 0, 1, "C")
   pdf.cell(0, 3, "Terima kasih.", 0, 1, "C")
@@ -350,7 +367,10 @@ if menu == "1. POS Kasir Utama":
           "Nama Pelanggan", placeholder="Nama Konsumen..."
       )
     with c_srch2:
-      nama_kasir = st.text_input("Kasir", value="Saeful I")
+      # Pilihan kasir dengan default Dzulfiqar dan opsi Nida
+      nama_kasir = st.selectbox(
+          "Kasir", ["Dzulfiqar", "Nida", "Saeful I", "Lainnya"]
+      )
     with c_srch3:
       pilih_tipe_pesanan = st.selectbox(
           "Tipe Pesanan", st.session_state.tipe_pesanan_list
@@ -469,12 +489,17 @@ if menu == "1. POS Kasir Utama":
 
       st.markdown("---")
       diskon = st.number_input("Diskon (Rp)", min_value=0, value=0, step=500)
+      packaging_fee = st.number_input(
+          "Biaya Packaging / Frozen (+)", min_value=0, value=0, step=500
+      )
       order_fee = st.number_input(
           "Order Fee / Ongkir (+)", min_value=0, value=0, step=500
       )
       pajak = st.number_input("Pajak (+)", min_value=0, value=0, step=500)
 
-      total_bayar = (subtotal_cart - diskon) + order_fee + pajak
+      total_bayar = (
+          subtotal_cart - diskon
+      ) + packaging_fee + order_fee + pajak
 
       st.markdown(
           f"### **Total Bayar: Rp {total_bayar:,}**", unsafe_allow_html=True
@@ -512,6 +537,7 @@ if menu == "1. POS Kasir Utama":
               item_list,
               subtotal_cart,
               diskon,
+              packaging_fee,
               order_fee,
               pajak,
               total_bayar,
