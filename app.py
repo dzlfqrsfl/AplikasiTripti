@@ -1,9 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from fpdf import FPDF
 import pandas as pd
 import streamlit as st
+
+# Zona Waktu Indonesia Barat (WIB / UTC+7)
+WIB = timezone(timedelta(hours=7))
 
 # --- PENCARIAN FILE LOGO UNTUK TAB BROWSER (FAVICON) ---
 favicon_file = "LogoTripti.jpeg"
@@ -197,7 +200,7 @@ def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
     current_x = next_x + space_length
 
 
-# Fungsi Struk PDF (Sudah ditambah Nama Pelanggan)
+# Fungsi Struk PDF
 def generate_tripti_receipt(
     items_dibeli,
     subtotal,
@@ -240,7 +243,6 @@ def generate_tripti_receipt(
   draw_dashed_line(pdf, x1, x2, pdf.get_y())
   pdf.ln(2)
 
-  # Info Nota & Nama Pelanggan
   pdf.set_font("Courier", "", 7)
   pdf.cell(0, 4, f"WAKTU PESANAN : {waktu}", 0, 1, "L")
   pdf.cell(0, 4, f"NO NOTA       : #{no_nota}", 0, 1, "L")
@@ -500,8 +502,9 @@ if menu == "1. POS Kasir Utama":
                 "qty"
             ]
 
-          waktu_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-          no_nota = f"PW{datetime.now().strftime('%d%H%M')}"
+          # Waktu disesuaikan ke WIB (UTC+7)
+          waktu_str = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
+          no_nota = f"PW{datetime.now(WIB).strftime('%d%H%M')}"
           nama_pelanggan_final = (
               cari_konsumen.strip() if cari_konsumen else "Umum"
           )
@@ -885,7 +888,8 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
                   ignore_index=True,
               )
 
-            waktu_prod = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Waktu produksi disesuaikan ke WIB
+            waktu_prod = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
             new_record = pd.DataFrame(
                 [[
                     waktu_prod,
