@@ -21,7 +21,7 @@ for nama_file in [
     favicon_file = nama_file
     break
 
-# Konfigurasi Halaman
+# Konfigurasi Halaman (Wide Layout)
 st.set_page_config(
     page_title="Tripti - POS Kasir & Produksi",
     page_icon=favicon_file if os.path.exists(favicon_file) else "🛒",
@@ -379,54 +379,52 @@ def generate_tripti_receipt(
   return filename
 
 
-# Navigasi Utama & Panel Backup/Restore di Sidebar
-st.markdown("### 🏷️ TRIPTI - POS Kasir & Produksi")
-menu = st.selectbox(
-    "Pilih Menu Utama",
+# --- NAVIGASI UTAMA DI SIDEBAR (SISI KIRI) ---
+st.sidebar.markdown("### 🏷️ TRIPTI - POS Kasir")
+menu = st.sidebar.radio(
+    "Pilih Menu Utama:",
     [
         "1. POS Kasir Utama",
         "2. Riwayat & Story Pemesanan",
-        "3. Pengaturan Tipe Pesanan (Custom)",
-        "4. Kelola Menu & Stok Produk Jadi (Edit)",
-        "5. Tab Produksi & Resep Baku (Edit)",
-        "6. Inventori Bahan Mentah (Edit)",
+        "3. Pengaturan Tipe Pesanan",
+        "4. Kelola Menu & Stok Produk Jadi",
+        "5. Tab Produksi & Resep Baku",
+        "6. Inventori Bahan Mentah",
     ],
 )
 
-with st.sidebar:
-  st.markdown("### 💾 Manajemen Database Lokal")
-  st.caption(
-      "Karena aplikasi berjalan di cloud, Anda bisa mendownload data untuk"
-      " cadangan, atau upload ulang file backup jika data ter-reset."
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 💾 Manajemen Database")
+if os.path.exists(DB_FILE):
+  with open(DB_FILE, "r", encoding="utf-8") as f:
+    db_json_bytes = f.read()
+  st.sidebar.download_button(
+      label="📥 Download Backup Data",
+      data=db_json_bytes,
+      file_name="tripti_database.json",
+      mime="application/json",
   )
-  if os.path.exists(DB_FILE):
-    with open(DB_FILE, "r", encoding="utf-8") as f:
-      db_json_bytes = f.read()
-    st.download_button(
-        label="📥 Download Backup Data",
-        data=db_json_bytes,
-        file_name="tripti_database.json",
-        mime="application/json",
+
+uploaded_db_file = st.sidebar.file_uploader(
+    "📤 Restore File Backup", type=["json"]
+)
+if uploaded_db_file is not None:
+  try:
+    restored_data = json.load(uploaded_db_file)
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+      json.dump(restored_data, f, ensure_ascii=False, indent=4)
+    st.sidebar.success(
+        "Database berhasil dipulihkan! Silakan refresh halaman."
     )
+  except Exception as e:
+    st.sidebar.error(f"Gagal memulihkan file: {e}")
 
-  uploaded_db_file = st.file_uploader(
-      "📤 Restore / Upload File Backup", type=["json"]
-  )
-  if uploaded_db_file is not None:
-    try:
-      restored_data = json.load(uploaded_db_file)
-      with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(restored_data, f, ensure_ascii=False, indent=4)
-      st.success("Database berhasil dipulihkan! Silakan refresh halaman.")
-    except Exception as e:
-      st.error(f"Gagal memulihkan file: {e}")
-
-st.markdown("---")
 
 # -------------------------------------------------------------------------
 # 1. POS KASIR UTAMA
 # -------------------------------------------------------------------------
 if menu == "1. POS Kasir Utama":
+  st.markdown("### 🛒 POS Kasir Utama")
   col_main, col_cart = st.columns([2, 1])
 
   with col_main:
@@ -765,7 +763,7 @@ elif menu == "2. Riwayat & Story Pemesanan":
 # -------------------------------------------------------------------------
 # 3. PENGATURAN TIPE PESANAN
 # -------------------------------------------------------------------------
-elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
+elif menu == "3. Pengaturan Tipe Pesanan":
   st.header("⚙️ Pengaturan Tipe Pesanan")
 
   with st.form("form_tambah_tipe"):
@@ -798,7 +796,7 @@ elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
 # -------------------------------------------------------------------------
 # 4. KELOLA MENU & STOK PRODUK JADI
 # -------------------------------------------------------------------------
-elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
+elif menu == "4. Kelola Menu & Stok Produk Jadi":
   st.header("🍽️ Kelola Menu Produk & Stok Jadi")
 
   with st.form("form_menu"):
@@ -890,7 +888,7 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
 # -------------------------------------------------------------------------
 # 5. TAB PRODUKSI & MASTER RESEP BAKU
 # -------------------------------------------------------------------------
-elif menu == "5. Tab Produksi & Resep Baku (Edit)":
+elif menu == "5. Tab Produksi & Resep Baku":
   st.header("🍳 Master Resep Baku & Produksi Setengah Jadi")
 
   tab_prod1, tab_prod2, tab_prod3 = st.tabs([
@@ -1116,16 +1114,62 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
           st.rerun()
 
     st.markdown("---")
-    st.subheader("📝 Daftar Master Resep Tersimpan")
+    st.subheader("📝 Edit Takaran Resep yang Sudah Ada")
     if st.session_state.master_resep.empty:
       st.info("Belum ada master resep baku.")
     else:
+      pilih_edit_resep = st.selectbox(
+          "Pilih Resep yang Ingin Diedit Takarannya",
+          st.session_state.master_resep["Nama Resep"].tolist(),
+      )
+
+      resep_idx_match = st.session_state.master_resep.index[
+          st.session_state.master_resep["Nama Resep"] == pilih_edit_resep
+      ][0]
+      current_komp_str = st.session_state.master_resep.loc[
+          resep_idx_match, "Komposisi Bahan"
+      ]
+
+      try:
+        current_komp_dict = json.loads(current_komp_str.replace("'", '"'))
+      except Exception:
+        current_komp_dict = {}
+
+      df_edit_komp = pd.DataFrame([
+          {"Nama Bahan": k, "Takaran": v} for k, v in current_komp_dict.items()
+      ])
+
+      st.write(f"Tabel Takaran Bahan untuk Resep: **{pilih_edit_resep}**")
+      edited_komp_df = st.data_editor(
+          df_edit_komp, num_rows="dynamic", use_container_width=True
+      )
+
+      if st.button("💾 Simpan Perubahan Takaran Resep Ini"):
+        new_komp_dict = {}
+        for _, r in edited_komp_df.iterrows():
+          b_name = str(r["Nama Bahan"]).strip()
+          b_val = int(r["Takaran"])
+          if b_name and b_val > 0:
+            new_komp_dict[b_name] = b_val
+
+        st.session_state.master_resep.loc[resep_idx_match, "Komposisi Bahan"] = (
+            str(new_komp_dict)
+        )
+        save_data()
+        st.success(
+            f"Takaran bahan untuk resep '{pilih_edit_resep}' berhasil"
+            " diperbarui!"
+        )
+        st.rerun()
+
+      st.markdown("---")
+      st.subheader("📝 Kelola Seluruh Data Master Resep")
       edited_master = st.data_editor(
           st.session_state.master_resep,
           num_rows="dynamic",
           use_container_width=True,
       )
-      if st.button("💾 Simpan Perubahan Master Resep"):
+      if st.button("💾 Simpan Perubahan Master Resep Utama"):
         st.session_state.master_resep = edited_master
         save_data()
         st.success("Master resep berhasil diperbarui!")
@@ -1212,7 +1256,7 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
 # -------------------------------------------------------------------------
 # 6. INVENTORI BAHAN MENTAH
 # -------------------------------------------------------------------------
-elif menu == "6. Inventori Bahan Mentah (Edit)":
+elif menu == "6. Inventori Bahan Mentah":
   st.header("📦 Inventori Bahan Mentah & Penyesuaian Stok")
 
   with st.expander("➕ Tambah Bahan Mentah Baru Manual"):
