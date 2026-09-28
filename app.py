@@ -81,6 +81,10 @@ def load_data():
           data["produk_jual"] = []
         if "produksi_setengah_jadi" not in data:
           data["produksi_setengah_jadi"] = []
+        if "komposisi_produk_jual" not in data:
+          data["komposisi_produk_jual"] = (
+              {}
+          )  # Menyimpan resep komponen produk jual
         if "tipe_pesanan_list" not in data:
           data["tipe_pesanan_list"] = [
               "Dine In",
@@ -108,6 +112,7 @@ def save_data():
           orient="records"
       ),
       "produk_jual": st.session_state.produk_jual.to_dict(orient="records"),
+      "komposisi_produk_jual": st.session_state.komposisi_produk_jual,
       "tipe_pesanan_list": st.session_state.tipe_pesanan_list,
       "transaksi": st.session_state.transaksi,
   }
@@ -118,21 +123,36 @@ def save_data():
 # Load data dari file JSON
 saved_db = load_data()
 
-# Inisialisasi Session State dengan DataFrame yang memiliki kolom lengkap
+# Inisialisasi Session State dengan konversi angka bulat
 if "initialized" not in st.session_state:
   if saved_db:
     st.session_state.bahan_mentah = pd.DataFrame(
         saved_db.get("bahan_mentah", []),
         columns=["Nama Bahan", "Stok", "Satuan"],
     )
+    if not st.session_state.bahan_mentah.empty:
+      st.session_state.bahan_mentah["Stok"] = (
+          st.session_state.bahan_mentah["Stok"].astype(float).astype(int)
+      )
+
     st.session_state.stok_setengah_jadi = pd.DataFrame(
         saved_db.get("stok_setengah_jadi", []),
         columns=["Nama Barang Setengah Jadi", "Stok", "Satuan"],
     )
+    if not st.session_state.stok_setengah_jadi.empty:
+      st.session_state.stok_setengah_jadi["Stok"] = (
+          st.session_state.stok_setengah_jadi["Stok"].astype(float).astype(int)
+      )
+
     st.session_state.master_resep = pd.DataFrame(
         saved_db.get("master_resep", []),
         columns=["Nama Resep", "Hasil Jadi", "Satuan Hasil", "Komposisi Bahan"],
     )
+    if not st.session_state.master_resep.empty:
+      st.session_state.master_resep["Hasil Jadi"] = (
+          st.session_state.master_resep["Hasil Jadi"].astype(float).astype(int)
+      )
+
     st.session_state.produksi_setengah_jadi = pd.DataFrame(
         saved_db.get("produksi_setengah_jadi", []),
         columns=[
@@ -143,9 +163,27 @@ if "initialized" not in st.session_state:
             "Bahan Terpakai",
         ],
     )
+    if not st.session_state.produksi_setengah_jadi.empty:
+      st.session_state.produksi_setengah_jadi["Jumlah Hasil"] = (
+          st.session_state.produksi_setengah_jadi["Jumlah Hasil"]
+          .astype(float)
+          .astype(int)
+      )
+
     st.session_state.produk_jual = pd.DataFrame(
         saved_db.get("produk_jual", []),
         columns=["Nama Produk", "Harga Jual", "Stok Produk", "SKU"],
+    )
+    if not st.session_state.produk_jual.empty:
+      st.session_state.produk_jual["Harga Jual"] = (
+          st.session_state.produk_jual["Harga Jual"].astype(float).astype(int)
+      )
+      st.session_state.produk_jual["Stok Produk"] = (
+          st.session_state.produk_jual["Stok Produk"].astype(float).astype(int)
+      )
+
+    st.session_state.komposisi_produk_jual = saved_db.get(
+        "komposisi_produk_jual", {}
     )
     st.session_state.tipe_pesanan_list = saved_db.get(
         "tipe_pesanan_list",
@@ -174,6 +212,7 @@ if "initialized" not in st.session_state:
     st.session_state.produk_jual = pd.DataFrame(
         columns=["Nama Produk", "Harga Jual", "Stok Produk", "SKU"]
     )
+    st.session_state.komposisi_produk_jual = {}
     st.session_state.tipe_pesanan_list = [
         "Dine In",
         "Takeaway",
@@ -200,7 +239,7 @@ def draw_dashed_line(pdf, x1, x2, y, dash_length=1.5, space_length=1.0):
     current_x = next_x + space_length
 
 
-# Fungsi Struk PDF (Sebagai Struk Tagihan + QRIS)
+# Fungsi Struk PDF
 def generate_tripti_receipt(
     items_dibeli,
     subtotal,
@@ -264,7 +303,9 @@ def generate_tripti_receipt(
     pdf.cell(
         0,
         4,
-        f"  {item['qty']}x      Rp {item['subtotal']:,.0f}".replace(",", "."),
+        f"  {item['qty']}x      Rp {int(item['subtotal']):,.0f}".replace(
+            ",", "."
+        ),
         0,
         1,
         "L",
@@ -272,7 +313,7 @@ def generate_tripti_receipt(
     pdf.cell(
         0,
         4,
-        f"  (@Rp {item['harga']:,.0f})".replace(",", "."),
+        f"  (@Rp {int(item['harga']):,.0f})".replace(",", "."),
         0,
         1,
         "L",
@@ -289,7 +330,9 @@ def generate_tripti_receipt(
     pdf.cell(
         0,
         4,
-        f"Rp {val:,.0f}".replace(",", ".") if isinstance(val, (int, float)) else val,
+        f"Rp {int(val):,.0f}".replace(",", ".")
+        if isinstance(val, (int, float))
+        else val,
         0,
         1,
         "R",
@@ -366,9 +409,7 @@ if menu == "1. POS Kasir Utama":
           "Nama Pelanggan", placeholder="Nama Konsumen..."
       )
     with c_srch2:
-      nama_kasir = st.selectbox(
-          "Kasir", ["Dzulfiqar", "Nida", "Lainnya"]
-      )
+      nama_kasir = st.selectbox("Kasir", ["Dzulfiqar", "Nida", "Saeful I"])
     with c_srch3:
       pilih_tipe_pesanan = st.selectbox(
           "Tipe Pesanan", st.session_state.tipe_pesanan_list
@@ -392,7 +433,7 @@ if menu == "1. POS Kasir Utama":
                         <div class="product-card">
                             <h3 style="color:white; margin:0;">{row['Nama Produk']}</h3>
                             <p style="margin:5px 0; font-size:12px;">SKU: {row['SKU']} | Stok: {row['Stok Produk']}</p>
-                            <h2 style="color:white; margin:5px 0;">Rp {row['Harga Jual']:,}</h2>
+                            <h2 style="color:white; margin:5px 0;">Rp {int(row['Harga Jual']):,}</h2>
                         </div>
                         """,
                 unsafe_allow_html=True,
@@ -405,7 +446,7 @@ if menu == "1. POS Kasir Utama":
                 key=f"input_qty_{idx}",
             )
 
-            if q_input > row["Stok Produk"]:
+            if q_input > int(row["Stok Produk"]):
               st.error(
                   f"Stok '{row['Nama Produk']}' tidak cukup! Tersedia:"
                   f" {row['Stok Produk']}"
@@ -415,9 +456,9 @@ if menu == "1. POS Kasir Utama":
               pesanan_input.append({
                   "index": idx,
                   "nama": row["Nama Produk"],
-                  "harga": row["Harga Jual"],
-                  "qty": q_input,
-                  "subtotal": row["Harga Jual"] * q_input,
+                  "harga": float(row["Harga Jual"]),
+                  "qty": int(q_input),
+                  "subtotal": float(row["Harga Jual"]) * int(q_input),
               })
 
           st.markdown("---")
@@ -468,11 +509,13 @@ if menu == "1. POS Kasir Utama":
         c_k1, c_k2, c_k3 = st.columns([2, 1, 1])
         with c_k1:
           st.write(f"**{p_name}**")
-          st.caption(f"Rp {data['harga']:,} x {data['qty']}")
+          st.caption(f"Rp {int(data['harga']):,} x {data['qty']}")
         with c_k2:
           if st.button("➕", key=f"plus_{p_name}"):
             idx_p = data["index"]
-            stok_s = st.session_state.produk_jual.loc[idx_p, "Stok Produk"]
+            stok_s = int(
+                st.session_state.produk_jual.loc[idx_p, "Stok Produk"]
+            )
             if st.session_state.cart[p_name]["qty"] + 1 > stok_s:
               st.error("Stok tidak mencukupi!")
             else:
@@ -486,30 +529,39 @@ if menu == "1. POS Kasir Utama":
             st.rerun()
 
       st.markdown("---")
-      diskon = st.number_input("Diskon (Rp)", min_value=0, value=0, step=500)
+      diskon = st.number_input(
+          "Diskon (Rp)", min_value=0, value=0, step=500, format="%d"
+      )
       packaging_fee = st.number_input(
-          "Biaya Packaging / Frozen (+)", min_value=0, value=0, step=500
+          "Biaya Packaging / Frozen (+)",
+          min_value=0,
+          value=0,
+          step=500,
+          format="%d",
       )
       order_fee = st.number_input(
-          "Order Fee / Ongkir (+)", min_value=0, value=0, step=500
+          "Order Fee / Ongkir (+)", min_value=0, value=0, step=500, format="%d"
       )
-      pajak = st.number_input("Pajak (+)", min_value=0, value=0, step=500)
+      pajak = st.number_input(
+          "Pajak (+)", min_value=0, value=0, step=500, format="%d"
+      )
 
       total_bayar = (
           subtotal_cart - diskon
       ) + packaging_fee + order_fee + pajak
 
       st.markdown(
-          f"### **Total Tagihan: Rp {total_bayar:,}**", unsafe_allow_html=True
+          f"### **Total Tagihan: Rp {int(total_bayar):,}**",
+          unsafe_allow_html=True,
       )
 
       if st.button("💳 PROSES & CETAK STRUK TAGIHAN", key="btn_bayar"):
         stok_cukup = True
         for item in item_list:
           idx_p = item["index"]
-          stok_sekarang = st.session_state.produk_jual.loc[
-              idx_p, "Stok Produk"
-          ]
+          stok_sekarang = int(
+              st.session_state.produk_jual.loc[idx_p, "Stok Produk"]
+          )
           if stok_sekarang < item["qty"]:
             stok_cukup = False
             st.error(
@@ -519,11 +571,38 @@ if menu == "1. POS Kasir Utama":
             break
 
         if stok_cukup:
+          # Potong stok produk jadi DAN potong otomatis barang setengah jadi jika ada komposisinya
           for item in item_list:
             idx_p = item["index"]
-            st.session_state.produk_jual.loc[idx_p, "Stok Produk"] -= item[
-                "qty"
-            ]
+            p_name = item["nama"]
+            q_qty = item["qty"]
+
+            st.session_state.produk_jual.loc[idx_p, "Stok Produk"] = (
+                int(st.session_state.produk_jual.loc[idx_p, "Stok Produk"])
+                - q_qty
+            )
+
+            # Potong stok setengah jadi berdasarkan komposisi produk jual
+            if p_name in st.session_state.komposisi_produk_jual:
+              for sj_name, sj_need_per_unit in st.session_state.komposisi_produk_jual[
+                  p_name
+              ].items():
+                total_need_sj = sj_need_per_unit * q_qty
+                sj_match_idx = st.session_state.stok_setengah_jadi.index[
+                    st.session_state.stok_setengah_jadi[
+                        "Nama Barang Setengah Jadi"
+                    ]
+                    == sj_name
+                ]
+                if not sj_match_idx.empty:
+                  current_sj_stok = int(
+                      st.session_state.stok_setengah_jadi.loc[
+                          sj_match_idx[0], "Stok"
+                      ]
+                  )
+                  st.session_state.stok_setengah_jadi.loc[
+                      sj_match_idx[0], "Stok"
+                  ] = max(0, current_sj_stok - total_need_sj)
 
           waktu_str = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S")
           no_nota = f"PW{datetime.now(WIB).strftime('%d%H%M')}"
@@ -562,7 +641,10 @@ if menu == "1. POS Kasir Utama":
 
           st.session_state.last_receipt = pdf_file
           st.session_state.cart = {}
-          st.success("Transaksi Sukses! Stok produk jadi telah terpotong.")
+          st.success(
+              "Transaksi Sukses! Stok produk jadi & setengah jadi telah"
+              " terpotong."
+          )
           st.rerun()
 
     if st.session_state.last_receipt and os.path.exists(
@@ -595,7 +677,7 @@ elif menu == "2. Riwayat & Story Pemesanan":
 
       with st.expander(
           f"Nota: #{trx['No Nota']} | {trx['Waktu']} | Pelanggan:"
-          f" {trx['Konsumen']} | Rp {trx['Total Bayar']:,}"
+          f" {trx['Konsumen']} | Rp {int(trx['Total Bayar']):,}"
       ):
         st.write(f"**Nama Konsumen:** {trx['Konsumen']}")
         st.write(f"**Kasir Bertugas:** {trx['Kasir']}")
@@ -608,10 +690,10 @@ elif menu == "2. Riwayat & Story Pemesanan":
         for itm in trx["Rincian Item"]:
           st.write(
               f"- {itm['nama']} ({itm['qty']}x) @Rp"
-              f" {itm['harga']:,} = Rp {itm['subtotal']:,}"
+              f" {int(itm['harga']):,} = Rp {int(itm['subtotal']):,}"
           )
 
-        st.markdown(f"### **Total: Rp {trx['Total Bayar']:,}**")
+        st.markdown(f"### **Total: Rp {int(trx['Total Bayar']):,}**")
 
         c_dl, c_void = st.columns(2)
         with c_dl:
@@ -637,8 +719,9 @@ elif menu == "2. Riwayat & Story Pemesanan":
                   st.session_state.produk_jual["Nama Produk"] == p_name
               ]
               if not match_idx.empty:
-                st.session_state.produk_jual.loc[match_idx[0], "Stok Produk"] += (
-                    q_bought
+                st.session_state.produk_jual.loc[match_idx[0], "Stok Produk"] = (
+                    int(st.session_state.produk_jual.loc[match_idx[0], "Stok Produk"])
+                    + q_bought
                 )
 
             if os.path.exists(trx["File Struk"]):
@@ -692,98 +775,89 @@ elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
 # 4. KELOLA MENU & STOK PRODUK JADI
 # -------------------------------------------------------------------------
 elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
-  st.header("🍽️ Kelola Menu Produk & Stok Jadi")
+  st.header("🍽️ Kelola Menu Produk & Stok Jadi & Komposisinya")
 
   with st.form("form_menu"):
-    nm = st.text_input("Nama Produk Siap Jual (Cth: Siomay Ikan Tenggiri)")
-    hrg = st.number_input("Harga Jual (Rp)", min_value=0, step=500)
-    stk_prod = st.number_input(
-        "Jumlah Stok Produk Jadi yang Ditambahkan", min_value=0, value=0, step=1
+    nm = st.text_input(
+        "Nama Produk Siap Jual (Cth: Pempek Ikan Tenggiri Matang / Frozen)"
     )
-    sku = st.text_input("Kode SKU (Cth: SIT-9872PJ)")
+    hrg = st.number_input(
+        "Harga Jual (Rp)", min_value=0, value=0, step=500, format="%d"
+    )
+    stk_prod = st.number_input(
+        "Jumlah Stok Produk Jadi Ditambahkan",
+        min_value=0,
+        value=0,
+        step=1,
+        format="%d",
+    )
+    sku = st.text_input("Kode SKU (Cth: PMK-01)")
 
     st.markdown("---")
     st.markdown(
-        "*(Opsional)* Pilih Barang Setengah Jadi yang Dipotong untuk Stok Ini:"
+        "#### 📦 Komposisi Barang Setengah Jadi untuk Produk Ini (Opsional)"
+    )
+    st.info(
+        "Tentukan berapa banyak barang setengah jadi yang terpakai per 1 unit"
+        " produk ini (misal: 5 pcs Pempek + 1 Cuko)."
     )
 
-    pilih_setengah_jadi = "Tidak Ada"
-    jml_potong_sj = 0.0
+    komposisi_produk_input = {}
     if not st.session_state.stok_setengah_jadi.empty:
-      list_opsi_sj = ["Tidak Ada"] + st.session_state.stok_setengah_jadi[
-          "Nama Barang Setengah Jadi"
-      ].tolist()
-      pilih_setengah_jadi = st.selectbox(
-          "Barang Setengah Jadi Terpakai", list_opsi_sj
-      )
-      if pilih_setengah_jadi != "Tidak Ada":
-        jml_potong_sj = st.number_input(
-            "Jumlah Setengah Jadi yang Dipotong",
-            min_value=0.0,
-            value=0.0,
-            step=1.0,
+      for idx_sj, row_sj in st.session_state.stok_setengah_jadi.iterrows():
+        qty_butuh_sj = st.number_input(
+            f"Jumlah {row_sj['Nama Barang Setengah Jadi']} ({row_sj['Satuan']}) yang"
+            f" dibutuhkan per 1 produk",
+            min_value=0,
+            value=0,
+            step=1,
+            format="%d",
+            key=f"komp_sj_{idx_sj}",
         )
+        if qty_butuh_sj > 0:
+          komposisi_produk_input[row_sj["Nama Barang Setengah Jadi"]] = (
+              qty_butuh_sj
+          )
     else:
-      st.info(
-          "Belum ada stok barang setengah jadi. Buat dulu di 'Tab Produksi &"
-          " Resep Baku'."
+      st.warning(
+          "Belum ada data Stok Setengah Jadi. Buat dulu di 'Tab Produksi & Resep"
+          " Baku'."
       )
 
-    if st.form_submit_button("Simpan Produk & Potong Stok Setengah Jadi") and nm:
-      bisa_simpan = True
-      if pilih_setengah_jadi != "Tidak Ada" and jml_potong_sj > 0:
-        stok_sj_row = st.session_state.stok_setengah_jadi.loc[
-            st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
-            == pilih_setengah_jadi
-        ]
-        if not stok_sj_row.empty:
-          stok_sj_tersedia = float(stok_sj_row["Stok"].values[0])
-          if stok_sj_tersedia < jml_potong_sj:
-            bisa_simpan = False
-            st.error(
-                f"Stok barang setengah jadi '{pilih_setengah_jadi}' tidak cukup!"
-                f" Tersisa {stok_sj_tersedia}, anda butuh {jml_potong_sj}."
-            )
+    if st.form_submit_button("Simpan Produk & Komposisinya") and nm:
+      existing_idx = st.session_state.produk_jual.index[
+          st.session_state.produk_jual["Nama Produk"].str.lower()
+          == nm.strip().lower()
+      ]
 
-      if bisa_simpan:
-        if pilih_setengah_jadi != "Tidak Ada" and jml_potong_sj > 0:
-          idx_sj = st.session_state.stok_setengah_jadi.index[
-              st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
-              == pilih_setengah_jadi
-          ][0]
-          st.session_state.stok_setengah_jadi.loc[idx_sj, "Stok"] -= (
-              jml_potong_sj
-          )
+      if not existing_idx.empty:
+        idx_e = existing_idx[0]
+        st.session_state.produk_jual.loc[idx_e, "Stok Produk"] = (
+            int(st.session_state.produk_jual.loc[idx_e, "Stok Produk"])
+            + int(stk_prod)
+        )
+        st.session_state.produk_jual.loc[idx_e, "Harga Jual"] = int(hrg)
+      else:
+        new_p = pd.DataFrame(
+            [{
+                "Nama Produk": nm.strip(),
+                "Harga Jual": int(hrg),
+                "Stok Produk": int(stk_prod),
+                "SKU": sku,
+            }]
+        )
+        st.session_state.produk_jual = pd.concat(
+            [st.session_state.produk_jual, new_p], ignore_index=True
+        )
 
-        existing_idx = st.session_state.produk_jual.index[
-            st.session_state.produk_jual["Nama Produk"].str.lower()
-            == nm.strip().lower()
-        ]
+      if komposisi_produk_input:
+        st.session_state.komposisi_produk_jual[nm.strip()] = (
+            komposisi_produk_input
+        )
 
-        if not existing_idx.empty:
-          idx_e = existing_idx[0]
-          st.session_state.produk_jual.loc[idx_e, "Stok Produk"] += stk_prod
-          st.session_state.produk_jual.loc[idx_e, "Harga Jual"] = hrg
-          save_data()
-          st.success(
-              f"Produk '{nm}' diperbarui. Stok bertambah {stk_prod} (Total"
-              f" stok: {st.session_state.produk_jual.loc[idx_e, 'Stok Produk']})."
-          )
-        else:
-          new_p = pd.DataFrame(
-              [{
-                  "Nama Produk": nm.strip(),
-                  "Harga Jual": hrg,
-                  "Stok Produk": stk_prod,
-                  "SKU": sku,
-              }]
-          )
-          st.session_state.produk_jual = pd.concat(
-              [st.session_state.produk_jual, new_p], ignore_index=True
-          )
-          save_data()
-          st.success(f"Produk baru '{nm}' berhasil ditambahkan!")
-        st.rerun()
+      save_data()
+      st.success(f"Produk '{nm}' dan komposisinya berhasil disimpan!")
+      st.rerun()
 
   st.markdown("---")
   st.subheader("📝 Edit atau Hapus Data Produk Jadi")
@@ -793,7 +867,7 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
     edited_produk = st.data_editor(
         st.session_state.produk_jual, num_rows="dynamic", use_container_width=True
     )
-    if st.button("💾 Simpan Perubahan Produk"):
+    if st.button("💾 Simpan Perubahan Produk Jadi"):
       st.session_state.produk_jual = edited_produk
       save_data()
       st.success("Data produk berhasil diperbarui!")
@@ -829,9 +903,10 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
 
         multiplier = st.number_input(
             "Jumlah Batch Produksi (Kelipatan Resep)",
-            min_value=1.0,
-            value=1.0,
-            step=1.0,
+            min_value=1,
+            value=1,
+            step=1,
+            format="%d",
         )
 
         submitted_eksekusi = st.form_submit_button(
@@ -842,7 +917,7 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
           resep_row = st.session_state.master_resep.loc[
               st.session_state.master_resep["Nama Resep"] == pilih_resep
           ].iloc[0]
-          hasil_per_resep = float(resep_row["Hasil Jadi"])
+          hasil_per_resep = int(resep_row["Hasil Jadi"])
           satuan_hasil = resep_row["Satuan Hasil"]
           komposisi_str = resep_row["Komposisi Bahan"]
 
@@ -855,7 +930,7 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
           bahan_terpakai_real = {}
 
           for bahan, qty_butuh_per_unit in komposisi_dict.items():
-            total_butuh = float(qty_butuh_per_unit) * multiplier
+            total_butuh = int(qty_butuh_per_unit) * int(multiplier)
             cek_bahan = st.session_state.bahan_mentah.loc[
                 st.session_state.bahan_mentah["Nama Bahan"] == bahan
             ]
@@ -866,7 +941,7 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
               )
               break
 
-            stok_sedia = float(cek_bahan["Stok"].values[0])
+            stok_sedia = int(cek_bahan["Stok"].values[0])
             satuan_bahan = cek_bahan["Satuan"].values[0]
 
             if stok_sedia < total_butuh:
@@ -883,12 +958,19 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
 
           if stok_cukup:
             for bahan, detail_pakai in bahan_terpakai_real.items():
-              jml_potong = float(detail_pakai.split()[0])
+              jml_potong = int(detail_pakai.split()[0])
+              current_b_stok = int(
+                  st.session_state.bahan_mentah.loc[
+                      st.session_state.bahan_mentah["Nama Bahan"] == bahan, "Stok"
+                  ].values[0]
+              )
               st.session_state.bahan_mentah.loc[
                   st.session_state.bahan_mentah["Nama Bahan"] == bahan, "Stok"
-              ] -= jml_potong
+              ] = (
+                  current_b_stok - jml_potong
+              )
 
-            total_hasil_jadi = hasil_per_resep * multiplier
+            total_hasil_jadi = hasil_per_resep * int(multiplier)
             existing_s_idx = st.session_state.stok_setengah_jadi.index[
                 st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
                 .str.lower()
@@ -897,8 +979,11 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
 
             if not existing_s_idx.empty:
               idx_s = existing_s_idx[0]
-              st.session_state.stok_setengah_jadi.loc[idx_s, "Stok"] += (
-                  total_hasil_jadi
+              current_sj_stok = int(
+                  st.session_state.stok_setengah_jadi.loc[idx_s, "Stok"]
+              )
+              st.session_state.stok_setengah_jadi.loc[idx_s, "Stok"] = (
+                  current_sj_stok + total_hasil_jadi
               )
             else:
               new_stok_sj = pd.DataFrame([{
@@ -948,12 +1033,16 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
 
     with st.form("form_tambah_master_resep"):
       nm_resep = st.text_input(
-          "Nama Resep Baku (Cth: Adonan Siomay Standar)"
+          "Nama Resep Baku (Cth: Adonan Pempek / Cuko Standar)"
       )
       col_r1, col_r2 = st.columns(2)
       with col_r1:
         hasil_jadi_std = st.number_input(
-            "Hasil Jadi Standar (Per 1 Resep)", min_value=1.0, value=80.0
+            "Hasil Jadi Standar (Per 1 Resep)",
+            min_value=1,
+            value=0,
+            step=1,
+            format="%d",
         )
       with col_r2:
         satuan_hasil_std = st.selectbox(
@@ -968,9 +1057,10 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
         for idx, row in st.session_state.bahan_mentah.iterrows():
           qty_pakai = st.number_input(
               f"Takaran {row['Nama Bahan']} ({row['Satuan']})",
-              min_value=0.0,
-              value=0.0,
-              step=1.0,
+              min_value=0,
+              value=0,
+              step=1,
+              format="%d",
               key=f"master_bahan_{idx}",
           )
           if qty_pakai > 0:
@@ -989,7 +1079,7 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
           new_master = pd.DataFrame(
               [{
                   "Nama Resep": nm_resep.strip(),
-                  "Hasil Jadi": hasil_jadi_std,
+                  "Hasil Jadi": int(hasil_jadi_std),
                   "Satuan Hasil": satuan_hasil_std,
                   "Komposisi Bahan": str(komposisi_input),
               }]
@@ -1028,6 +1118,58 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
         st.success("Master resep berhasil diperbarui!")
 
   with tab_prod3:
+    st.subheader("➕ Input Manual Stok Setengah Jadi (Ready Stock)")
+    st.info(
+        "Gunakan form ini untuk langsung mencatat barang setengah jadi yang"
+        " sudah siap di stok (misalnya hasil produksi kemarin tanpa potong"
+        " bahan)."
+    )
+
+    with st.form("form_manual_stok_sj"):
+      c_m1, c_m2, c_m3 = st.columns([2, 1, 1])
+      with c_m1:
+        nama_sj_manual = st.text_input(
+            "Nama Barang Setengah Jadi (Cth: Pempek Lenjer / Cuko)"
+        )
+      with c_m2:
+        jumlah_sj_manual = st.number_input(
+            "Jumlah Stok", min_value=0, value=0, step=1, format="%d"
+        )
+      with c_m3:
+        satuan_sj_manual = st.selectbox(
+            "Satuan Stok", ["pcs", "porsi", "kg", "liter", "bungkus"]
+        )
+
+      if st.form_submit_button("➕ Tambah Stok Setengah Jadi Manual") and nama_sj_manual:
+        existing_sj = st.session_state.stok_setengah_jadi.index[
+            st.session_state.stok_setengah_jadi["Nama Barang Setengah Jadi"]
+            .str.lower()
+            == nama_sj_manual.strip().lower()
+        ]
+        if not existing_sj.empty:
+          idx_sj = existing_sj[0]
+          curr_stk = int(st.session_state.stok_setengah_jadi.loc[idx_sj, "Stok"])
+          st.session_state.stok_setengah_jadi.loc[idx_sj, "Stok"] = (
+              curr_stk + jumlah_sj_manual
+          )
+        else:
+          new_sj_row = pd.DataFrame([{
+              "Nama Barang Setengah Jadi": nama_sj_manual.strip(),
+              "Stok": jumlah_sj_manual,
+              "Satuan": satuan_sj_manual,
+          }])
+          st.session_state.stok_setengah_jadi = pd.concat(
+              [st.session_state.stok_setengah_jadi, new_sj_row],
+              ignore_index=True,
+          )
+
+        save_data()
+        st.success(
+            f"Stok setengah jadi '{nama_sj_manual}' berhasil ditambahkan!"
+        )
+        st.rerun()
+
+    st.markdown("---")
     st.subheader("📦 Stok Barang Setengah Jadi Saat Ini")
     if st.session_state.stok_setengah_jadi.empty:
       st.info("Belum ada stok barang setengah jadi.")
@@ -1066,11 +1208,14 @@ elif menu == "6. Inventori Bahan Mentah (Edit)":
   with st.expander("➕ Tambah Bahan Mentah Baru Manual"):
     with st.form("form_tambah_bahan"):
       nm_b = st.text_input("Nama Bahan Mentah (Cth: Ikan Tenggiri Giling)")
-      stk_b = st.number_input("Jumlah Stok Awal", min_value=0.0, step=1.0)
+      stk_b = st.number_input(
+          "Jumlah Stok Awal", min_value=0, value=0, step=1, format="%d"
+      )
       sat_b = st.selectbox("Satuan", ["gram", "ml", "pcs", "kg", "liter"])
       if st.form_submit_button("Simpan Bahan Baru") and nm_b:
         new_bm = pd.DataFrame(
-            [[nm_b, stk_b, sat_b]], columns=["Nama Bahan", "Stok", "Satuan"]
+            [[nm_b.strip(), int(stk_b), sat_b]],
+            columns=["Nama Bahan", "Stok", "Satuan"],
         )
         st.session_state.bahan_mentah = pd.concat(
             [st.session_state.bahan_mentah, new_bm], ignore_index=True
@@ -1098,6 +1243,7 @@ elif menu == "6. Inventori Bahan Mentah (Edit)":
 
         kolom_wajib = ["Nama Bahan", "Stok", "Satuan"]
         if all(col in df_u.columns for col in kolom_wajib):
+          df_u["Stok"] = df_u["Stok"].astype(float).astype(int)
           st.session_state.bahan_mentah = pd.concat(
               [st.session_state.bahan_mentah, df_u[kolom_wajib]],
               ignore_index=True,
