@@ -62,7 +62,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- SISTEM PENYIMPANAN PERMANEN (LOCAL JSON DATABASE) ---
+# --- SISTEM PENYIMPANAN LOKAL & FITUR BACKUP/RESTORE ---
 DB_FILE = "tripti_database.json"
 
 
@@ -82,9 +82,7 @@ def load_data():
         if "produksi_setengah_jadi" not in data:
           data["produksi_setengah_jadi"] = []
         if "komposisi_produk_jual" not in data:
-          data["komposisi_produk_jual"] = (
-              {}
-          )  # Menyimpan resep komponen produk jual
+          data["komposisi_produk_jual"] = {}
         if "tipe_pesanan_list" not in data:
           data["tipe_pesanan_list"] = [
               "Dine In",
@@ -381,7 +379,7 @@ def generate_tripti_receipt(
   return filename
 
 
-# Navigasi Utama
+# Navigasi Utama & Panel Backup/Restore di Sidebar
 st.markdown("### 🏷️ TRIPTI - POS Kasir & Produksi")
 menu = st.selectbox(
     "Pilih Menu Utama",
@@ -394,6 +392,35 @@ menu = st.selectbox(
         "6. Inventori Bahan Mentah (Edit)",
     ],
 )
+
+with st.sidebar:
+  st.markdown("### 💾 Manajemen Database Lokal")
+  st.caption(
+      "Karena aplikasi berjalan di cloud, Anda bisa mendownload data untuk"
+      " cadangan, atau upload ulang file backup jika data ter-reset."
+  )
+  if os.path.exists(DB_FILE):
+    with open(DB_FILE, "r", encoding="utf-8") as f:
+      db_json_bytes = f.read()
+    st.download_button(
+        label="📥 Download Backup Data",
+        data=db_json_bytes,
+        file_name="tripti_database.json",
+        mime="application/json",
+    )
+
+  uploaded_db_file = st.file_uploader(
+      "📤 Restore / Upload File Backup", type=["json"]
+  )
+  if uploaded_db_file is not None:
+    try:
+      restored_data = json.load(uploaded_db_file)
+      with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(restored_data, f, ensure_ascii=False, indent=4)
+      st.success("Database berhasil dipulihkan! Silakan refresh halaman.")
+    except Exception as e:
+      st.error(f"Gagal memulihkan file: {e}")
+
 st.markdown("---")
 
 # -------------------------------------------------------------------------
@@ -405,9 +432,7 @@ if menu == "1. POS Kasir Utama":
   with col_main:
     c_srch1, c_srch2, c_srch3 = st.columns([2, 1, 1])
     with c_srch1:
-      cari_konsumen = st.text_input(
-          "Nama Pelanggan", placeholder="Nama Konsumen..."
-      )
+      cari_konsumen = st.text_input("Nama Pelanggan", placeholder="")
     with c_srch2:
       nama_kasir = st.selectbox("Kasir", ["Dzulfiqar", "Nida", "Saeful I"])
     with c_srch3:
@@ -415,7 +440,7 @@ if menu == "1. POS Kasir Utama":
           "Tipe Pesanan", st.session_state.tipe_pesanan_list
       )
 
-    st.markdown("#### Daftar Produk Siap Jual (Ketik Qty Langsung)")
+    st.markdown("#### Daftar Produk Siap Jual")
     if st.session_state.produk_jual.empty:
       st.info(
           "Belum ada produk. Tambahkan di menu 'Kelola Menu & Stok Produk Jadi'."
@@ -443,6 +468,7 @@ if menu == "1. POS Kasir Utama":
                 min_value=0,
                 value=0,
                 step=1,
+                format="%d",
                 key=f"input_qty_{idx}",
             )
 
@@ -571,7 +597,6 @@ if menu == "1. POS Kasir Utama":
             break
 
         if stok_cukup:
-          # Potong stok produk jadi DAN potong otomatis barang setengah jadi jika ada komposisinya
           for item in item_list:
             idx_p = item["index"]
             p_name = item["nama"]
@@ -582,7 +607,6 @@ if menu == "1. POS Kasir Utama":
                 - q_qty
             )
 
-            # Potong stok setengah jadi berdasarkan komposisi produk jual
             if p_name in st.session_state.komposisi_produk_jual:
               for sj_name, sj_need_per_unit in st.session_state.komposisi_produk_jual[
                   p_name
@@ -663,7 +687,7 @@ if menu == "1. POS Kasir Utama":
 # 2. RIWAYAT & STORY PEMESANAN
 # -------------------------------------------------------------------------
 elif menu == "2. Riwayat & Story Pemesanan":
-  st.header("📜 Riwayat & Story Pemesanan (Log Transaksi)")
+  st.header("📜 Riwayat & Story Pemesanan")
   st.info(
       "Daftar transaksi yang berhasil diproses. Anda dapat membatalkan pesanan"
       " untuk mengembalikan stok produk."
@@ -742,7 +766,7 @@ elif menu == "2. Riwayat & Story Pemesanan":
 # 3. PENGATURAN TIPE PESANAN
 # -------------------------------------------------------------------------
 elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
-  st.header("⚙️ Pengaturan Tipe Pesanan (Custom)")
+  st.header("⚙️ Pengaturan Tipe Pesanan")
 
   with st.form("form_tambah_tipe"):
     baru_tipe = st.text_input("Nama Tipe Pesanan Baru")
@@ -775,12 +799,10 @@ elif menu == "3. Pengaturan Tipe Pesanan (Custom)":
 # 4. KELOLA MENU & STOK PRODUK JADI
 # -------------------------------------------------------------------------
 elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
-  st.header("🍽️ Kelola Menu Produk & Stok Jadi & Komposisinya")
+  st.header("🍽️ Kelola Menu Produk & Stok Jadi")
 
   with st.form("form_menu"):
-    nm = st.text_input(
-        "Nama Produk Siap Jual (Cth: Pempek Ikan Tenggiri Matang / Frozen)"
-    )
+    nm = st.text_input("Nama Produk Siap Jual")
     hrg = st.number_input(
         "Harga Jual (Rp)", min_value=0, value=0, step=500, format="%d"
     )
@@ -791,23 +813,16 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi (Edit)":
         step=1,
         format="%d",
     )
-    sku = st.text_input("Kode SKU (Cth: PMK-01)")
+    sku = st.text_input("Kode SKU")
 
     st.markdown("---")
-    st.markdown(
-        "#### 📦 Komposisi Barang Setengah Jadi untuk Produk Ini (Opsional)"
-    )
-    st.info(
-        "Tentukan berapa banyak barang setengah jadi yang terpakai per 1 unit"
-        " produk ini (misal: 5 pcs Pempek + 1 Cuko)."
-    )
+    st.markdown("#### Komposisi Barang Setengah Jadi untuk Produk Ini")
 
     komposisi_produk_input = {}
     if not st.session_state.stok_setengah_jadi.empty:
       for idx_sj, row_sj in st.session_state.stok_setengah_jadi.iterrows():
         qty_butuh_sj = st.number_input(
-            f"Jumlah {row_sj['Nama Barang Setengah Jadi']} ({row_sj['Satuan']}) yang"
-            f" dibutuhkan per 1 produk",
+            f"Jumlah {row_sj['Nama Barang Setengah Jadi']} ({row_sj['Satuan']}) yang dibutuhkan per 1 produk",
             min_value=0,
             value=0,
             step=1,
@@ -1032,15 +1047,13 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
     )
 
     with st.form("form_tambah_master_resep"):
-      nm_resep = st.text_input(
-          "Nama Resep Baku (Cth: Adonan Pempek / Cuko Standar)"
-      )
+      nm_resep = st.text_input("Nama Resep Baku")
       col_r1, col_r2 = st.columns(2)
       with col_r1:
         hasil_jadi_std = st.number_input(
             "Hasil Jadi Standar (Per 1 Resep)",
             min_value=1,
-            value=0,
+            value=1,
             step=1,
             format="%d",
         )
@@ -1121,16 +1134,13 @@ elif menu == "5. Tab Produksi & Resep Baku (Edit)":
     st.subheader("➕ Input Manual Stok Setengah Jadi (Ready Stock)")
     st.info(
         "Gunakan form ini untuk langsung mencatat barang setengah jadi yang"
-        " sudah siap di stok (misalnya hasil produksi kemarin tanpa potong"
-        " bahan)."
+        " sudah siap di stok."
     )
 
     with st.form("form_manual_stok_sj"):
       c_m1, c_m2, c_m3 = st.columns([2, 1, 1])
       with c_m1:
-        nama_sj_manual = st.text_input(
-            "Nama Barang Setengah Jadi (Cth: Pempek Lenjer / Cuko)"
-        )
+        nama_sj_manual = st.text_input("Nama Barang Setengah Jadi")
       with c_m2:
         jumlah_sj_manual = st.number_input(
             "Jumlah Stok", min_value=0, value=0, step=1, format="%d"
@@ -1207,7 +1217,7 @@ elif menu == "6. Inventori Bahan Mentah (Edit)":
 
   with st.expander("➕ Tambah Bahan Mentah Baru Manual"):
     with st.form("form_tambah_bahan"):
-      nm_b = st.text_input("Nama Bahan Mentah (Cth: Ikan Tenggiri Giling)")
+      nm_b = st.text_input("Nama Bahan Mentah")
       stk_b = st.number_input(
           "Jumlah Stok Awal", min_value=0, value=0, step=1, format="%d"
       )
