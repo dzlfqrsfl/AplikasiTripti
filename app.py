@@ -379,51 +379,47 @@ def generate_tripti_receipt(
   return filename
 
 
-# --- NAVIGASI UTAMA DI SIDEBAR (SISI KIRI) ---
-st.sidebar.markdown("### 🏷️ TRIPTI - POS Kasir")
-menu = st.sidebar.radio(
-    "Pilih Menu Utama:",
-    [
-        "1. POS Kasir Utama",
-        "2. Riwayat & Story Pemesanan",
-        "3. Pengaturan Tipe Pesanan",
-        "4. Kelola Menu & Stok Produk Jadi",
-        "5. Tab Produksi & Resep Baku",
-        "6. Inventori Bahan Mentah",
-    ],
-)
+# --- JUDUL UTAMA & SIDEBAR BACKUP ---
+st.markdown("### 🏷️ TRIPTI - POS Kasir & Produksi")
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 💾 Manajemen Database")
-if os.path.exists(DB_FILE):
-  with open(DB_FILE, "r", encoding="utf-8") as f:
-    db_json_bytes = f.read()
-  st.sidebar.download_button(
-      label="📥 Download Backup Data",
-      data=db_json_bytes,
-      file_name="tripti_database.json",
-      mime="application/json",
-  )
-
-uploaded_db_file = st.sidebar.file_uploader(
-    "📤 Restore File Backup", type=["json"]
-)
-if uploaded_db_file is not None:
-  try:
-    restored_data = json.load(uploaded_db_file)
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-      json.dump(restored_data, f, ensure_ascii=False, indent=4)
-    st.sidebar.success(
-        "Database berhasil dipulihkan! Silakan refresh halaman."
+with st.sidebar:
+  st.markdown("### 💾 Manajemen Database")
+  if os.path.exists(DB_FILE):
+    with open(DB_FILE, "r", encoding="utf-8") as f:
+      db_json_bytes = f.read()
+    st.download_button(
+        label="📥 Download Backup Data",
+        data=db_json_bytes,
+        file_name="tripti_database.json",
+        mime="application/json",
     )
-  except Exception as e:
-    st.sidebar.error(f"Gagal memulihkan file: {e}")
 
+  uploaded_db_file = st.file_uploader(
+      "📤 Restore File Backup", type=["json"]
+  )
+  if uploaded_db_file is not None:
+    try:
+      restored_data = json.load(uploaded_db_file)
+      with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(restored_data, f, ensure_ascii=False, indent=4)
+      st.success("Database berhasil dipulihkan! Silakan refresh halaman.")
+    except Exception as e:
+      st.error(f"Gagal memulihkan file: {e}")
+
+# --- NAVIGASI MENGGUNAKAN TAB HORIZONTAL DI ATAS ---
+menu_tabs = st.tabs([
+    "POS Kasir Utama",
+    "Riwayat Pesanan",
+    "Tipe Pesanan",
+    "Kelola Produk Jadi",
+    "Produksi & Resep",
+    "Bahan Mentah",
+])
 
 # -------------------------------------------------------------------------
-# 1. POS KASIR UTAMA
+# TAB 1: POS KASIR UTAMA
 # -------------------------------------------------------------------------
-if menu == "1. POS Kasir Utama":
+with menu_tabs[0]:
   st.markdown("### 🛒 POS Kasir Utama")
   col_main, col_cart = st.columns([2, 1])
 
@@ -441,7 +437,7 @@ if menu == "1. POS Kasir Utama":
     st.markdown("#### Daftar Produk Siap Jual")
     if st.session_state.produk_jual.empty:
       st.info(
-          "Belum ada produk. Tambahkan di menu 'Kelola Menu & Stok Produk Jadi'."
+          "Belum ada produk. Tambahkan di menu 'Kelola Produk Jadi'."
       )
     else:
       with st.form("form_pembelian_qty"):
@@ -682,9 +678,9 @@ if menu == "1. POS Kasir Utama":
         )
 
 # -------------------------------------------------------------------------
-# 2. RIWAYAT & STORY PEMESANAN
+# TAB 2: RIWAYAT & STORY PEMESANAN
 # -------------------------------------------------------------------------
-elif menu == "2. Riwayat & Story Pemesanan":
+with menu_tabs[1]:
   st.header("📜 Riwayat & Story Pemesanan")
   st.info(
       "Daftar transaksi yang berhasil diproses. Anda dapat membatalkan pesanan"
@@ -761,9 +757,9 @@ elif menu == "2. Riwayat & Story Pemesanan":
             st.rerun()
 
 # -------------------------------------------------------------------------
-# 3. PENGATURAN TIPE PESANAN
+# TAB 3: PENGATURAN TIPE PESANAN
 # -------------------------------------------------------------------------
-elif menu == "3. Pengaturan Tipe Pesanan":
+with menu_tabs[2]:
   st.header("⚙️ Pengaturan Tipe Pesanan")
 
   with st.form("form_tambah_tipe"):
@@ -794,9 +790,9 @@ elif menu == "3. Pengaturan Tipe Pesanan":
     st.success("Daftar tipe pesanan berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 4. KELOLA MENU & STOK PRODUK JADI
+# TAB 4: KELOLA MENU & STOK PRODUK JADI
 # -------------------------------------------------------------------------
-elif menu == "4. Kelola Menu & Stok Produk Jadi":
+with menu_tabs[3]:
   st.header("🍽️ Kelola Menu Produk & Stok Jadi")
 
   with st.form("form_menu"):
@@ -833,8 +829,8 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi":
           )
     else:
       st.warning(
-          "Belum ada data Stok Setengah Jadi. Buat dulu di 'Tab Produksi & Resep"
-          " Baku'."
+          "Belum ada data Stok Setengah Jadi. Buat dulu di menu 'Produksi &"
+          " Resep'."
       )
 
     if st.form_submit_button("Simpan Produk & Komposisinya") and nm:
@@ -886,18 +882,18 @@ elif menu == "4. Kelola Menu & Stok Produk Jadi":
       st.success("Data produk berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 5. TAB PRODUKSI & MASTER RESEP BAKU
+# TAB 5: PRODUKSI & MASTER RESEP BAKU
 # -------------------------------------------------------------------------
-elif menu == "5. Tab Produksi & Resep Baku":
+with menu_tabs[4]:
   st.header("🍳 Master Resep Baku & Produksi Setengah Jadi")
 
-  tab_prod1, tab_prod2, tab_prod3 = st.tabs([
-      "1. Proses Produksi (Eksekusi Resep)",
-      "2. Kelola Master Resep Baku",
-      "3. Stok & Riwayat Setengah Jadi",
+  sub_tabs = st.tabs([
+      "Proses Produksi",
+      "Kelola Master Resep",
+      "Stok & Riwayat Setengah Jadi",
   ])
 
-  with tab_prod1:
+  with sub_tabs[0]:
     st.subheader("⚡ Eksekusi Produksi dari Resep Baku")
     st.info(
         "Pilih resep baku yang sudah dibuat. Sistem akan otomatis menghitung dan"
@@ -907,7 +903,7 @@ elif menu == "5. Tab Produksi & Resep Baku":
     if st.session_state.master_resep.empty:
       st.warning(
           "Belum ada Master Resep Baku. Buat terlebih dahulu di tab 'Kelola"
-          " Master Resep Baku'."
+          " Master Resep'."
       )
     else:
       with st.form("form_eksekusi_resep"):
@@ -1038,7 +1034,7 @@ elif menu == "5. Tab Produksi & Resep Baku":
             )
             st.rerun()
 
-  with tab_prod2:
+  with sub_tabs[1]:
     st.subheader("📋 Buat & Kelola Master Resep Baku")
     st.info(
         "Tentukan komposisi bahan mentah tetap untuk satu standar resep."
@@ -1174,7 +1170,7 @@ elif menu == "5. Tab Produksi & Resep Baku":
         save_data()
         st.success("Master resep berhasil diperbarui!")
 
-  with tab_prod3:
+  with sub_tabs[2]:
     st.subheader("➕ Input Manual Stok Setengah Jadi (Ready Stock)")
     st.info(
         "Gunakan form ini untuk langsung mencatat barang setengah jadi yang"
@@ -1254,9 +1250,9 @@ elif menu == "5. Tab Produksi & Resep Baku":
         st.success("Riwayat produksi berhasil diperbarui!")
 
 # -------------------------------------------------------------------------
-# 6. INVENTORI BAHAN MENTAH
+# TAB 6: INVENTORI BAHAN MENTAH
 # -------------------------------------------------------------------------
-elif menu == "6. Inventori Bahan Mentah":
+with menu_tabs[5]:
   st.header("📦 Inventori Bahan Mentah & Penyesuaian Stok")
 
   with st.expander("➕ Tambah Bahan Mentah Baru Manual"):
